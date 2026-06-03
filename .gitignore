@@ -1,0 +1,15 @@
+node_modules
+dist
+.next
+.env
+.env.local
+*.tsbuildinfo
+coverage
+*.log
+logs
+uploads
+apps/api/uploads
+
+.vercel
+
+.vercel

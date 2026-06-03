@@ -1,0 +1,30 @@
+/** @type {import('next').NextConfig} */
+const apiProxyUrl = process.env.API_PROXY_URL ?? 'http://localhost:3001';
+const icecastProxyUrl = process.env.ICECAST_PROXY_URL ?? 'http://localhost:8000';
+const hlsProxyUrl = process.env.HLS_PROXY_URL ?? 'http://localhost:8888';
+
+const nextConfig = {
+  devIndicators: false,
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${apiProxyUrl}/:path*`
+      },
+      {
+        source: '/socket.io/:path*',
+        destination: `${apiProxyUrl}/socket.io/:path*`
+      },
+      {
+        source: '/radio/:path*',
+        destination: `${icecastProxyUrl}/radio/:path*`
+      },
+      {
+        source: '/hls/:path*',
+        destination: `${hlsProxyUrl}/:path*`
+      }
+    ];
+  }
+};
+
+export default nextConfig;

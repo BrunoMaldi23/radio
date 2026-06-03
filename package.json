@@ -1,0 +1,29 @@
+{
+  "name": "radio-labranza-platform",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "api:dev": "npm run start:dev -w apps/api",
+    "api:build": "npm run build -w apps/api",
+    "web:dev": "npm run dev -w apps/web",
+    "web:build": "npm run build -w apps/web",
+    "local:stream": "powershell -ExecutionPolicy Bypass -File scripts/start-streaming-local.ps1",
+    "local:stream:stop": "powershell -ExecutionPolicy Bypass -File scripts/stop-streaming-local.ps1",
+    "local:check": "powershell -ExecutionPolicy Bypass -File scripts/check-local.ps1",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "tsx prisma/seed.ts"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

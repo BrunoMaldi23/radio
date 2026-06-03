@@ -1,0 +1,114 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: radio_labranza_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: radio_labranza_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      WEB_ORIGIN: ${WEB_ORIGIN}
+      ICECAST_PUBLIC_URL: ${ICECAST_PUBLIC_URL}
+      ICECAST_ADMIN_URL: ${ICECAST_ADMIN_URL}
+      ICECAST_STATUS_URL: http://icecast:8000/status-json.xsl
+      MEDIAMTX_RTMP_URL: ${MEDIAMTX_RTMP_URL}
+      MEDIAMTX_HLS_URL: ${MEDIAMTX_HLS_URL}
+      MEDIAMTX_API_URL: http://mediamtx:9997
+    volumes:
+      - uploads_data:/app/uploads
+    expose:
+      - "3001"
+
+  icecast:
+    image: moul/icecast
+    container_name: radio_labranza_icecast
+    restart: unless-stopped
+    volumes:
+      - ./infra/icecast/icecast.xml:/etc/icecast2/icecast.xml:ro
+    ports:
+      - "8000:8000"
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: radio_labranza_mediamtx
+    restart: unless-stopped
+    volumes:
+      - ./infra/mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    ports:
+      - "1935:1935"
+      - "8888:8888"
+      - "8889:8889"
+      - "8890:8890/udp"
+      - "9997:9997"
+      - "9998:9998"
+
+  audio-relay:
+    image: jrottenberg/ffmpeg:6.1-alpine
+    container_name: radio_labranza_audio_relay
+    restart: unless-stopped
+    depends_on:
+      - icecast
+      - mediamtx
+    command:
+      - -hide_banner
+      - -loglevel
+      - info
+      - -i
+      - rtmp://mediamtx:1935/tv
+      - -vn
+      - -af
+      - aresample=48000,volume=0.82,alimiter=limit=0.70:level=disabled
+      - -c:a
+      - libmp3lame
+      - -b:a
+      - 160k
+      - -content_type
+      - audio/mpeg
+      - -f
+      - mp3
+      - icecast://source:hackme-source@icecast:8000/radio
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: radio_labranza_caddy
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  postgres_data:
+  uploads_data:
+  caddy_data:
+  caddy_config:

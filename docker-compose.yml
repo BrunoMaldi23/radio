@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: radio_labranza_local_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: radio_labranza
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d radio_labranza"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  icecast:
+    image: moul/icecast
+    container_name: radio_labranza_local_icecast
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./infra/icecast/icecast.xml:/etc/icecast2/icecast.xml:ro
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: radio_labranza_local_mediamtx
+    restart: unless-stopped
+    ports:
+      - "1935:1935"
+      - "8888:8888"
+      - "8889:8889"
+      - "8890:8890/udp"
+      - "9997:9997"
+      - "9998:9998"
+    volumes:
+      - ./infra/mediamtx/mediamtx.yml:/mediamtx.yml:ro
+
+volumes:
+  postgres_data:

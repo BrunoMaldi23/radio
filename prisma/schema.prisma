@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+  EDITOR
+  STUDENT
+  TEACHER
+}
+
+enum BookingStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ResourceType {
+  BOOK
+  HARDWARE
+}
+
+enum ContentStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum StreamProtocol {
+  ICECAST
+  SHOUTCAST
+  HLS
+  RTMP
+  SRT
+}
+
+enum MountStatus {
+  ONLINE
+  STANDBY
+  OFFLINE
+  DEGRADED
+}
+
+enum ProgramStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+model User {
+  id               Int       @id @default(autoincrement())
+  name             String
+  email            String    @unique
+  password         String
+  role             Role      @default(STUDENT)
+  isActive         Boolean   @default(true)
+  isPenalized      Boolean   @default(false)
+  penaltyEndDate   DateTime?
+  bookings         Booking[]
+  auditLogs        AuditLog[]
+}
+
+model Space {
+  id          Int       @id @default(autoincrement())
+  name        String
+  capacity    Int
+  features    String
+  isActive    Boolean   @default(true)
+  bookings    Booking[]
+}
+
+model Resource {
+  id            Int            @id @default(autoincrement())
+  title         String
+  type          ResourceType
+  uniqueCode    String         @unique
+  isActive      Boolean        @default(true)
+  bookingDetails BookingDetail[]
+}
+
+model Booking {
+  id          Int             @id @default(autoincrement())
+  userId      Int
+  spaceId     Int?
+  startTime   DateTime
+  endTime     DateTime
+  status      BookingStatus   @default(PENDING)
+  user        User            @relation(fields: [userId], references: [id])
+  space       Space?          @relation(fields: [spaceId], references: [id])
+  details     BookingDetail[]
+}
+
+model BookingDetail {
+  id         Int      @id @default(autoincrement())
+  bookingId  Int
+  resourceId Int
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+  resource   Resource @relation(fields: [resourceId], references: [id])
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  actorId     Int?
+  action      String
+  entityType  String
+  entityId    Int?
+  description String
+  createdAt   DateTime @default(now())
+  actor       User?    @relation(fields: [actorId], references: [id])
+}
+
+model StreamServer {
+  id                 Int          @id @default(autoincrement())
+  name               String
+  protocol           StreamProtocol @default(ICECAST)
+  publicHost         String
+  internalHost       String?
+  port               Int          @default(8000)
+  tlsEnabled         Boolean      @default(true)
+  sourceUsername     String       @default("source")
+  sourcePasswordRef  String
+  adminUsername      String       @default("admin")
+  adminPasswordRef   String
+  encoder            String       @default("Liquidsoap")
+  codec              String       @default("AAC")
+  bitrateKbps        Int          @default(192)
+  fallbackPlaylist   String       @default("Auto DJ")
+  isPrimary          Boolean      @default(false)
+  isActive           Boolean      @default(true)
+  mounts             StreamMount[]
+  relays             StreamRelay[]
+  metadata           StreamMetadata[]
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+model StreamMount {
+  id              Int          @id @default(autoincrement())
+  serverId        Int
+  path            String
+  displayName     String
+  format          String
+  bitrateKbps     Int
+  status          MountStatus  @default(STANDBY)
+  listeners       Int          @default(0)
+  maxListeners    Int?
+  publicUrl       String
+  hlsUrl          String?
+  isDefault       Boolean      @default(false)
+  server          StreamServer @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  metadata        StreamMetadata[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([serverId, path])
+}
+
+model StreamRelay {
+  id          Int          @id @default(autoincrement())
+  serverId    Int
+  region      String
+  url         String
+  latencyMs   Int          @default(0)
+  isActive    Boolean      @default(true)
+  server      StreamServer @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([serverId, region])
+}
+
+model StreamMetadata {
+  id          Int          @id @default(autoincrement())
+  serverId    Int
+  mountId     Int?
+  title       String
+  artist      String
+  artworkUrl  String?
+  source      String       @default("manual")
+  isCurrent   Boolean      @default(true)
+  server      StreamServer @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  mount       StreamMount? @relation(fields: [mountId], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+}
+
+model Article {
+  id          Int           @id @default(autoincrement())
+  slug        String        @unique
+  title       String
+  excerpt     String
+  body        String
+  category    String
+  coverUrl    String?
+  status      ContentStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Program {
+  id          Int           @id @default(autoincrement())
+  slug        String        @unique
+  name        String
+  host        String
+  description String
+  schedule    String
+  imageUrl    String?
+  status      ProgramStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Frequency {
+  id          Int      @id @default(autoincrement())
+  city        String
+  dial        String
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model RankingTrack {
+  id          Int      @id @default(autoincrement())
+  title       String
+  artist      String
+  artworkUrl  String?
+  votes       Int      @default(0)
+  isActive    Boolean  @default(true)
+  votesLog    Vote[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([title, artist])
+}
+
+model Vote {
+  id        Int          @id @default(autoincrement())
+  trackId   Int
+  ipHash    String?
+  createdAt DateTime     @default(now())
+  track     RankingTrack @relation(fields: [trackId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,29 @@
+{$API_DOMAIN} {
+  encode zstd gzip
+
+  @radio path /radio*
+  handle @radio {
+    reverse_proxy icecast:8000
+  }
+
+  handle /hls/* {
+    uri strip_prefix /hls
+    reverse_proxy mediamtx:8888 {
+      header_down Location ^/(.*)$ /hls/$1
+    }
+  }
+
+  @uploads path /uploads/*
+  handle @uploads {
+    reverse_proxy api:3001
+  }
+
+  @socket path /socket.io/*
+  handle @socket {
+    reverse_proxy api:3001
+  }
+
+  handle {
+    reverse_proxy api:3001
+  }
+}

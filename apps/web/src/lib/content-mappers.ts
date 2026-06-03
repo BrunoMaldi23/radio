@@ -1,0 +1,37 @@
+import type { Article, Program } from '@/lib/api';
+
+export const fallbackImage = '/logo-radio.png';
+
+function safeMediaUrl(value?: string | null) {
+  if (!value) {
+    return fallbackImage;
+  }
+
+  if (value.startsWith('/') || value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+
+  return fallbackImage;
+}
+
+export function mapArticle(article: Article) {
+  return {
+    slug: article.slug,
+    category: article.category,
+    title: article.title,
+    excerpt: article.excerpt,
+    imageUrl: safeMediaUrl(article.coverUrl),
+    date: article.publishedAt
+      ? new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'short' }).format(new Date(article.publishedAt))
+      : 'Ahora'
+  };
+}
+
+export function mapProgram(program: Program) {
+  return {
+    name: program.name,
+    host: program.host,
+    schedule: program.schedule,
+    imageUrl: safeMediaUrl(program.imageUrl)
+  };
+}
