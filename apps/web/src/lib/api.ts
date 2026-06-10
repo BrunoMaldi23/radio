@@ -152,6 +152,12 @@ function getRequestBaseUrl() {
     return API_URL;
   }
 
+  // On Vercel, route through the deployment URL so requests go through Vercel rewrites
+  const vercelUrl = process.env.VERCEL_URL;
+  if (vercelUrl) {
+    return `https://${vercelUrl}`;
+  }
+
   return configuredApiUrl || process.env.API_PROXY_URL || API_URL;
 }
 
