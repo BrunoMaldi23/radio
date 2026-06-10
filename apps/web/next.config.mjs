@@ -21,7 +21,7 @@ const nextConfig = {
       },
       {
         source: '/hls/:path*',
-        destination: `${hlsProxyUrl}/:path*`
+        destination: `${hlsProxyUrl}/hls/:path*`
       }
     ];
   }
