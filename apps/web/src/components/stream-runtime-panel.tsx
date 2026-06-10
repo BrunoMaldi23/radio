@@ -27,6 +27,9 @@ export function StreamRuntimePanel() {
     [status]
   );
 
+  const hlsReaders = tvPath?.readers?.filter((r: { type: string }) => r.type === 'hlsSession').length ?? 0;
+  const totalReaders = tvPath?.readers?.length ?? 0;
+
   async function refresh() {
     setLoading(true);
     try {
@@ -70,7 +73,7 @@ export function StreamRuntimePanel() {
             <p>Estado: <strong className="text-[#0f172a]">{tvPath?.ready ? 'Transmitiendo' : 'Esperando OBS'}</strong></p>
             <p>Fuente: <strong className="text-[#0f172a]">{tvPath?.source?.type ?? 'Sin fuente'}</strong></p>
             <p>Tracks: <strong className="text-[#0f172a]">{tvPath?.tracks?.join(', ') || 'Sin tracks'}</strong></p>
-            <p>Lectores: <strong className="text-[#0f172a]">{tvPath?.readers?.length ?? 0}</strong></p>
+            <p>Espectadores HLS: <strong className="text-[#0f172a]">{hlsReaders}</strong> <span className="text-xs text-slate-400">({totalReaders} total conexiones)</span></p>
           </div>
         </div>
       </div>
