@@ -10,7 +10,7 @@ import { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { JwtPayload } from './jwt-payload';
+import type { JwtPayload } from './jwt-payload';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
 
@@ -69,7 +69,7 @@ export class AuthController {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
-      role: user.role
+      role: user.role as Role
     };
     return {
       user,
