@@ -152,7 +152,9 @@ function getRequestBaseUrl() {
     return API_URL;
   }
 
-  // On Vercel, route through the deployment URL + /api so requests go through Vercel rewrites
+  // Server-side: prefer going through Vercel rewrites (via deployment URL) to avoid
+  // direct nip.io DNS issues. Falls back to API_PROXY_URL (set on Vercel dashboard),
+  // then to configuredApiUrl or /api.
   const vercelUrl = process.env.VERCEL_URL;
   if (vercelUrl) {
     return `https://${vercelUrl}/api`;
