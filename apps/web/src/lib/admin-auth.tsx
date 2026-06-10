@@ -44,10 +44,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Try to restore session via httpOnly cookie (sent automatically by browser)
     api.me()
-      .then((currentUser) => {
+      .then((data) => {
         if (!mountedRef.current) return;
-        setUser(currentUser);
-        return refreshAll(currentUser);
+        setUser(data.user);
+        setToken(data.accessToken);
+        return refreshAll(data.user);
       })
       .catch(() => {
         if (!mountedRef.current) return;

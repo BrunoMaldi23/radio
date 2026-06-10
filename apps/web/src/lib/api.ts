@@ -219,7 +219,7 @@ export const api = {
     });
   },
   me(token?: string) {
-    return request<User>('/auth/me', {}, token);
+    return request<{ user: User; accessToken: string }>('/auth/me', {}, token);
   },
   logout() {
     return request<{ ok: boolean }>('/auth/logout', { method: 'POST' });

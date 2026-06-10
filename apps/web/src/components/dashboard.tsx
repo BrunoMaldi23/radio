@@ -176,9 +176,9 @@ export function Dashboard() {
   useEffect(() => {
     // Try cookie-based session first (httpOnly cookie)
     api.me()
-      .then((currentUser) => {
-        setToken('cookie-session');
-        setUser(currentUser);
+      .then((data) => {
+        setToken(data.accessToken);
+        setUser(data.user);
       })
       .catch(() => {
         // Fallback: try localStorage token (legacy)
@@ -203,7 +203,9 @@ export function Dashboard() {
     setMessage('');
     const bearerToken = activeToken === 'cookie-session' ? undefined : activeToken;
     try {
-      const currentUser = await api.me(bearerToken);
+      const response = await api.me(bearerToken);
+      setToken(response.accessToken);
+      const currentUser = response.user;
       const [loadedSpaces, loadedResources, loadedBookings] = await Promise.all([
         api.spaces(bearerToken),
         api.resources(bearerToken),
