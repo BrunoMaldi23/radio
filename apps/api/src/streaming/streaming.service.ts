@@ -105,11 +105,9 @@ export class StreamingService {
 
   async getRuntimeStatus() {
     const mediaMtxApiUrl = process.env.MEDIAMTX_API_URL ?? 'http://localhost:9997';
-    const hlsUrl = process.env.MEDIAMTX_HLS_URL ?? 'http://localhost:8888/tv/index.m3u8';
-    const icecastUrl = process.env.ICECAST_PUBLIC_URL ?? 'http://localhost:8000/radio';
-    const icecastStatusUrl = process.env.ICECAST_STATUS_URL ?? new URL('/status-json.xsl', icecastUrl).toString();
+    const icecastStatusUrl = process.env.ICECAST_STATUS_URL ?? 'http://localhost:8000/status-json.xsl';
 
-    const [paths, hls, icecast] = await Promise.allSettled([
+    const [paths, icecast] = await Promise.allSettled([
       fetch(`${mediaMtxApiUrl}/v3/paths/list`).then(async (response) => {
         const body = await response.json().catch(() => null);
         if (!response.ok) {
@@ -118,12 +116,15 @@ export class StreamingService {
 
         return body;
       }),
-      fetch(hlsUrl).then((response) => ({ ok: response.ok, status: response.status })),
       fetch(icecastStatusUrl).then((response) => ({
         ok: response.ok || response.status === 404,
         status: response.status
       }))
     ]);
+
+    const tvPath = paths.status === 'fulfilled'
+      ? paths.value?.items?.find((i: { name: string }) => i.name === 'tv') ?? null
+      : null;
 
     return {
       mediamtx: {
@@ -131,7 +132,7 @@ export class StreamingService {
         paths: paths.status === 'fulfilled' ? paths.value : null,
         error: paths.status === 'rejected' ? paths.reason?.message ?? 'MediaMTX unavailable' : null
       },
-      hls: hls.status === 'fulfilled' ? hls.value : { ok: false, status: 0 },
+      hls: { ok: Boolean(tvPath?.source && tvPath?.tracks?.length), status: tvPath ? 200 : 503 },
       icecast: icecast.status === 'fulfilled' ? icecast.value : { ok: false, status: 0 }
     };
   }
