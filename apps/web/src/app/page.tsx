@@ -186,10 +186,15 @@ export default function Home() {
       <section>
         <SectionHeading eyebrow="Exitos 90,2000" href="/lo-nuevo" title="Exitos 90,2000" />
         {newArticles.length ? (
-          <div className="grid gap-4 md:grid-cols-3">
-            {newArticles.slice(0, 3).map((article, index) => (
-              <ArticleCard article={article} featured={index === 0} key={article.slug} />
-            ))}
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <ArticleCard article={newArticles[0]} featured={true} />
+            </div>
+            <div className="grid gap-4">
+              {newArticles.slice(1, 3).map((article) => (
+                <ArticleCard article={article} key={article.slug} />
+              ))}
+            </div>
           </div>
         ) : (
           <div className="radio-panel rounded-lg p-6 text-sm font-semibold text-slate-600">

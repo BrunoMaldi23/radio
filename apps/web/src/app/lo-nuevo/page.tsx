@@ -25,9 +25,9 @@ export default function NewPage() {
       />
       <SectionHeading eyebrow="Clasicos y favoritos" title="Exitos 90,2000" />
       {articles.length ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {articles.map((article) => (
-            <ArticleCard article={article} key={article.slug} />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {articles.map((article, index) => (
+            <ArticleCard article={article} featured={index === 0} key={article.slug} />
           ))}
         </div>
       ) : (
