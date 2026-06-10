@@ -2,10 +2,11 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
+  Activity,
+  ArrowUpRight,
   FileText,
-  Gift,
   LayoutDashboard,
   ListMusic,
   Loader2,
@@ -13,27 +14,42 @@ import {
   LogOut,
   Menu,
   MapPin,
+  Newspaper,
   Radio,
   RadioTower,
+  RefreshCw,
   ShieldCheck,
   Sparkles,
-  Tv,
   Users,
   X,
 } from 'lucide-react';
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { AdminAuthProvider, useAdminAuth } from '@/lib/admin-auth';
 import { Button } from '@/components/ui/button';
 
 const sidebarLinks = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/contenido', label: 'Contenido', icon: FileText },
-  { href: '/admin/programas', label: 'Programas', icon: Tv },
-  { href: '/admin/ranking', label: 'Ranking', icon: ListMusic },
-  { href: '/admin/frecuencia', label: 'Frecuencia', icon: MapPin },
-  { href: '/admin/usuarios', label: 'Usuarios', icon: Users },
-  { href: '/admin/transmision', label: 'Transmision', icon: Radio },
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, description: 'Resumen operativo' },
+  { href: '/admin/contenido?category=Noticias', label: 'Noticias', icon: Newspaper, description: 'Noticias y editoriales', category: 'Noticias' },
+  { href: '/admin/contenido?category=Exitos%2090%2C2000', label: 'Exitos', icon: FileText, description: 'Exitos 90 y 2000', category: 'Exitos 90,2000' },
+  { href: '/admin/contenido?category=Rankings%20semanal', label: 'Rankings', icon: ListMusic, description: 'Rankings editoriales', category: 'Rankings semanal' },
+  { href: '/admin/comunidad', label: 'Comunidad', icon: MapPin, description: 'Eventos y galeria' },
+  { href: '/admin/usuarios', label: 'Usuarios', icon: Users, description: 'Roles y accesos' },
+  { href: '/admin/transmision', label: 'Transmision', icon: Radio, description: 'Radio, TV y senales' },
 ];
+
+function getPageMeta(pathname: string, category?: string | null) {
+  if (pathname === '/admin/contenido' && category) {
+    const contentLink = sidebarLinks.find((link) => link.category === category);
+    if (contentLink) return contentLink;
+  }
+
+  const current = [...sidebarLinks]
+    .sort((a, b) => b.href.length - a.href.length)
+    .find((link) => pathname === link.href || (link.href !== '/admin' && !link.href.includes('?') && pathname.startsWith(`${link.href}/`)));
+
+  if (current) return current;
+  return sidebarLinks[0];
+}
 
 const NavItem = memo(function NavItem({
   href,
@@ -52,19 +68,25 @@ const NavItem = memo(function NavItem({
     <Link
       href={href}
       onClick={onNavigate}
-      className={`group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition-all duration-200 ${
+      className={`group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-all duration-200 ${
         isActive
-          ? 'bg-amber-400 text-slate-950 shadow-lg shadow-amber-950/25'
-          : 'text-slate-300 hover:bg-white/10 hover:text-white'
+          ? 'bg-gradient-to-r from-amber-400/20 via-amber-400/12 to-amber-500/10 text-white shadow-sm shadow-black/20 ring-1 ring-amber-300/25'
+          : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
       }`}
     >
-      {isActive && <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-slate-950" />}
-      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md transition-all duration-200 ${
-        isActive ? 'bg-slate-950/10 text-slate-950' : 'bg-white/10 text-slate-400 group-hover:bg-white/15 group-hover:text-amber-300'
+      {isActive && (
+        <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-amber-400 to-amber-500 shadow-sm shadow-amber-500/50" />
+      )}
+      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-all duration-200 ${
+        isActive
+          ? 'bg-amber-300/18 text-amber-200 shadow-sm shadow-black/20'
+          : 'bg-white/[0.07] text-slate-400 group-hover:bg-white/[0.12] group-hover:text-amber-300'
       }`}>
         <Icon className="h-4 w-4" />
       </span>
-      {label}
+      <span className="min-w-0">
+        <span className="block truncate">{label}</span>
+      </span>
     </Link>
   );
 });
@@ -75,7 +97,7 @@ const UserMenu = memo(function UserMenu() {
   return (
     <button
       onClick={logout}
-      className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#ff94a7]/40 bg-[#d7193f] px-3 text-sm font-bold text-white shadow-lg shadow-[#d7193f]/25 transition hover:border-[#ffc4cf]/70 hover:bg-[#b01032] hover:shadow-[#d7193f]/40"
+      className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-rose-400/20 bg-rose-500/12 px-3 text-sm font-bold text-rose-100 shadow-lg shadow-black/20 transition-all hover:border-rose-300/40 hover:bg-rose-500/20 active:scale-[0.97]"
       type="button"
     >
       <LogOut className="h-4 w-4" />
@@ -86,45 +108,129 @@ const UserMenu = memo(function UserMenu() {
 
 const AdminSidebar = memo(function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user } = useAdminAuth();
 
   return (
-    <aside className="flex h-full flex-col overflow-hidden bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px),radial-gradient(circle_at_16%_0%,rgba(245,158,11,0.28),transparent_260px),radial-gradient(circle_at_92%_18%,rgba(20,184,166,0.16),transparent_220px),linear-gradient(180deg,#020617_0%,#111827_48%,#020617_100%)] bg-[size:34px_34px,34px_34px,auto,auto,auto]">
-      <div className="border-b border-white/10 px-5 py-5">
-        <span className="grid h-14 w-[164px] place-items-center rounded-lg bg-white px-3 shadow-lg shadow-black/30 ring-1 ring-amber-200/40">
+    <aside className="flex h-full flex-col overflow-hidden bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),radial-gradient(ellipse_at_16%_0%,rgba(245,158,11,0.20),transparent_50%),radial-gradient(ellipse_at_92%_80%,rgba(20,184,166,0.10),transparent_50%),linear-gradient(180deg,#020617_0%,#0f172a_50%,#020617_100%)] bg-[size:32px_32px,32px_32px,auto,auto,auto]">
+      <div className="border-b border-white/[0.07] px-5 py-4">
+        <span className="grid h-12 w-full max-w-[164px] shrink-0 place-items-center rounded-lg bg-white/95 px-3 shadow-lg shadow-black/30 ring-1 ring-amber-300/25">
           <Image
             alt="Radio Labranza FM+"
-            className="h-9 w-auto object-contain"
-            height={36}
+            className="h-8 w-auto object-contain"
+            height={32}
             src="/logo-radio.png"
-            width={130}
+            width={120}
           />
         </span>
       </div>
-      <nav className="admin-scroll flex-1 space-y-1 overflow-y-auto px-3 pt-5">
-        <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.15em] text-amber-300/70">Navegacion</p>
-        {sidebarLinks.map((link) => {
-          if (link.href === '/admin/usuarios') {
-            if (user?.role !== 'ADMIN') return null;
-          }
-          return (
-            <NavItem
-              key={link.href}
-              href={link.href}
-              label={link.label}
-              icon={link.icon}
-              isActive={pathname === link.href}
-              onNavigate={onNavigate}
-            />
-          );
-        })}
-      </nav>
-      <div className="border-t border-white/10 px-3 py-3">
+
+      <div className="flex flex-1 flex-col overflow-y-auto px-3 pt-5">
+        <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-300/60">Navegacion</p>
+        <nav className="space-y-0.5">
+          {sidebarLinks.map((link) => {
+            if (link.href === '/admin/usuarios') {
+              if (user?.role !== 'ADMIN') return null;
+            }
+            const isContentCategory = link.category && pathname === '/admin/contenido';
+            const isActive = isContentCategory
+              ? searchParams.get('category') === link.category
+              : pathname === link.href || (link.href !== '/admin' && !link.href.includes('?') && pathname.startsWith(`${link.href}/`));
+            return (
+              <NavItem
+                key={link.href}
+                href={link.href}
+                label={link.label}
+                icon={link.icon}
+                isActive={isActive}
+                onNavigate={onNavigate}
+              />
+            );
+          })}
+        </nav>
+      </div>
+
+      <div className="border-t border-white/[0.06] px-3 py-3">
+        <div className="mb-3 flex items-center gap-3 rounded-lg bg-white/[0.05] px-3 py-2.5 ring-1 ring-white/[0.08]">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-[13px] font-black text-slate-950 shadow-sm">
+            {user?.name?.slice(0, 1).toUpperCase() ?? 'A'}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-200">{user?.name ?? 'Usuario'}</p>
+            <p className="truncate text-xs font-medium text-slate-500">{user?.email ?? ''}</p>
+          </div>
+        </div>
         <UserMenu />
       </div>
     </aside>
   );
 });
+
+function AdminTopbar() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { adminData, loading, refreshContent, user } = useAdminAuth();
+  const page = useMemo(() => getPageMeta(pathname, searchParams.get('category')), [pathname, searchParams]);
+  const Icon = page.icon;
+  const publishedArticles = adminData.articles.filter((article) => article.status === 'PUBLISHED').length;
+  const communityItems = adminData.articles.filter((article) => article.category === 'Eventos' || article.category === 'Galeria').length;
+
+  return (
+    <header className="sticky top-0 z-20 hidden border-b border-slate-900/10 bg-gradient-to-r from-amber-50 via-white to-amber-50/80 px-8 shadow-sm shadow-slate-950/5 backdrop-blur-xl lg:block">
+      <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between gap-8">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#020617] text-amber-200 shadow-sm ring-1 ring-slate-900/10">
+            <Icon className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <Link className="transition hover:text-amber-700" href="/admin">Admin</Link>
+              <span className="h-1 w-1 rounded-full bg-slate-300" />
+              <span className="truncate text-slate-500">{page.label}</span>
+            </div>
+            <div className="mt-1 flex min-w-0 items-baseline gap-3">
+              <h1 className="truncate text-lg font-black tracking-tight text-[#0f172a]">{page.label}</h1>
+              <p className="truncate text-sm font-medium text-slate-500">{page.description}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end gap-2.5">
+          <div className="hidden items-center gap-2 rounded-lg border border-slate-900/10 bg-white/78 px-3 py-2 shadow-sm ring-1 ring-slate-900/5 xl:flex">
+            <span className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+              <Activity className="h-3.5 w-3.5 text-emerald-600" />
+              <span className="text-[#0f172a]">{publishedArticles}</span> publicados
+            </span>
+            <span className="h-4 w-px bg-slate-200" />
+            <span className="text-xs font-bold text-slate-600">
+              <span className="text-[#0f172a]">{communityItems}</span> comunidad
+            </span>
+          </div>
+
+          <Button
+            variant="outline"
+            className="h-10 border-slate-900/10 bg-white/78 px-3 text-slate-700 shadow-sm hover:border-amber-300 hover:bg-amber-50 hover:text-amber-800"
+            disabled={loading}
+            onClick={() => refreshContent()}
+            type="button"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            <span className="hidden xl:inline">Sincronizar</span>
+          </Button>
+          <Button asChild variant="outline" className="h-10 border-slate-900/10 bg-[#020617] px-3 text-amber-200 shadow-sm hover:bg-[#0f172a]">
+            <Link href="/" target="_blank">
+              <ArrowUpRight className="h-4 w-4" />
+              Sitio
+            </Link>
+          </Button>
+          <span className="grid h-10 w-10 place-items-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-sm font-black text-slate-950 shadow-sm ring-1 ring-amber-300/50" title={user?.email ?? 'Usuario'}>
+            {user?.name?.slice(0, 1).toUpperCase() ?? 'A'}
+          </span>
+        </div>
+      </div>
+    </header>
+  );
+}
 
 function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => Promise<void> }) {
   const [email, setEmail] = useState('');
@@ -146,25 +252,27 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
   }, [email, password, onLogin]);
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_12%_10%,rgba(245,158,11,0.34),transparent_360px),radial-gradient(circle_at_88%_12%,rgba(20,184,166,0.18),transparent_330px),linear-gradient(135deg,#020617,#111827_52%,#020617)] px-4 py-10">
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:42px_42px]" />
-      <div className="relative grid w-full max-w-6xl overflow-hidden rounded-2xl border border-white/10 bg-white/10 shadow-2xl shadow-black/50 backdrop-blur-2xl lg:min-h-[620px] lg:grid-cols-[1.08fr_0.92fr]">
-        <section className="relative hidden overflow-hidden border-r border-white/10 p-10 text-white lg:flex lg:flex-col lg:justify-between">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_14%,rgba(245,158,11,0.2),transparent_260px),radial-gradient(circle_at_85%_30%,rgba(20,184,166,0.12),transparent_260px)]" />
-          <div className="relative">
-            <span className="inline-grid h-24 w-52 place-items-center rounded-xl bg-white px-5 shadow-2xl shadow-black/35 ring-1 ring-amber-300/40">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#020617] via-[#0f172a] to-[#020617] px-4 py-10">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_20%,rgba(20,184,166,0.16),transparent_50%),radial-gradient(ellipse_at_80%_80%,rgba(245,158,11,0.12),transparent_50%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:48px_48px]" />
+
+      <div className="relative grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/[0.08] bg-white/[0.04] shadow-2xl shadow-black/60 backdrop-blur-2xl lg:min-h-[600px] lg:grid-cols-[1fr_1fr]">
+        <section className="relative hidden overflow-hidden bg-gradient-to-br from-[#020617] via-[#0f172a] to-[#020617] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_10%,rgba(20,184,166,0.16),transparent_50%),radial-gradient(ellipse_at_90%_90%,rgba(245,158,11,0.12),transparent_50%)]" />
+          <div className="relative z-10">
+            <span className="inline-grid h-24 w-52 place-items-center rounded-2xl bg-white/95 px-5 shadow-2xl shadow-black/40 ring-1 ring-amber-300/30">
               <Image alt="Radio Labranza FM+" className="h-auto w-40 object-contain" height={70} priority src="/logo-radio.png" width={230} />
             </span>
-            <p className="mt-8 inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-amber-300">
-              <Sparkles className="h-4 w-4" />
+            <p className="mt-8 inline-flex items-center gap-2 rounded-full bg-amber-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-amber-300 ring-1 ring-amber-400/20">
+              <Sparkles className="h-3.5 w-3.5" />
               Panel privado
             </p>
-            <h1 className="mt-4 max-w-xl text-5xl font-black leading-none tracking-tight">Centro de control Labranza FM+</h1>
-            <p className="mt-5 max-w-lg text-sm leading-7 text-slate-300">
-              Gestiona contenidos, programas, ranking, frecuencias y transmision desde una cabina digital preparada para operar en vivo.
+            <h1 className="mt-5 max-w-md text-4xl font-black leading-[1.1] tracking-tight">Centro de control</h1>
+            <p className="mt-3 max-w-sm text-sm leading-6 text-slate-400">
+              Gestiona contenidos, programas, ranking, comunidad y transmision desde una cabina digital preparada para operar en vivo.
             </p>
           </div>
-          <div className="relative grid gap-3">
+          <div className="relative z-10 grid gap-2.5">
             {[
               { label: 'Senal', value: 'Radio y TV', icon: RadioTower },
               { label: 'Contenido', value: 'CMS activo', icon: FileText },
@@ -172,62 +280,67 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
             ].map((item) => {
               const Icon = item.icon;
               return (
-                <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/10 p-4" key={item.label}>
-                  <span className="grid h-10 w-10 place-items-center rounded-md bg-amber-400 text-slate-950">
-                    <Icon className="h-5 w-5" />
+                <div className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.04] p-3.5 transition hover:bg-white/[0.08]" key={item.label}>
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 shadow-sm">
+                    <Icon className="h-4.5 w-4.5" />
                   </span>
                   <span>
-                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{item.label}</span>
-                    <span className="block text-sm font-black text-white">{item.value}</span>
+                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{item.label}</span>
+                    <span className="block text-sm font-bold text-white">{item.value}</span>
                   </span>
                 </div>
               );
             })}
           </div>
         </section>
-        <section className="grid content-center p-6 sm:p-10">
-          <div className="mx-auto w-full max-w-md">
-        <div className="mb-8 text-center">
-          <span className="mx-auto grid h-24 w-44 place-items-center rounded-xl bg-white px-5 shadow-2xl shadow-black/35 ring-1 ring-amber-300/40 lg:hidden">
-            <Image alt="Radio Labranza FM+" className="h-auto w-36 object-contain" height={70} priority src="/logo-radio.png" width={210} />
-          </span>
-          <p className="mt-7 text-xs font-black uppercase tracking-[0.18em] text-amber-300 lg:mt-0">Acceso autorizado</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">Iniciar sesion</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-400">Entra al panel para administrar la radio en tiempo real.</p>
-        </div>
-        <form onSubmit={handleSubmit} className="grid gap-5 rounded-xl border border-white/10 bg-slate-950/70 p-7 shadow-2xl shadow-black/45">
-          {error && (
-            <div className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-200">
-              {error}
+
+        <section className="flex items-center justify-center p-6 sm:p-10">
+          <div className="w-full max-w-sm">
+            <div className="mb-8 text-center">
+              <span className="mx-auto grid h-20 w-40 place-items-center rounded-2xl bg-white/95 px-5 shadow-2xl shadow-black/40 ring-1 ring-amber-300/30 lg:hidden">
+                <Image alt="Radio Labranza FM+" className="h-auto w-32 object-contain" height={56} priority src="/logo-radio.png" width={180} />
+              </span>
+              <p className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-amber-300/10 px-3.5 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-amber-200 ring-1 ring-amber-300/20 lg:mt-0">
+                <Sparkles className="h-3 w-3" />
+                Acceso autorizado
+              </p>
+              <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Iniciar sesion</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-500">Entra al panel para administrar la radio en tiempo real.</p>
             </div>
-          )}
-          <div className="grid gap-2">
-            <label className="text-xs font-black uppercase tracking-[0.12em] text-slate-300">Correo electronico</label>
-            <input
-              className="h-12 w-full rounded-lg border border-white/10 bg-white/10 px-4 text-sm font-semibold text-white outline-none placeholder:text-slate-500 transition hover:border-white/20 focus:border-amber-400 focus:bg-white/20 focus:ring-4 focus:ring-amber-400/20"
-              type="email"
-              placeholder="tu@correo.cl"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="grid gap-2">
-            <label className="text-xs font-black uppercase tracking-[0.12em] text-slate-300">Contrasena</label>
-            <input
-              className="h-12 w-full rounded-lg border border-white/10 bg-white/10 px-4 text-sm font-semibold text-white outline-none placeholder:text-slate-500 transition hover:border-white/20 focus:border-amber-400 focus:bg-white/20 focus:ring-4 focus:ring-amber-400/20"
-              type="password"
-              placeholder="********"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <Button type="submit" disabled={busy} className="mt-2 h-12 w-full rounded-lg bg-amber-400 text-sm font-black text-slate-950 shadow-lg shadow-amber-950/30 transition hover:bg-amber-300 hover:shadow-xl hover:shadow-amber-950/40">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
-            {busy ? 'Ingresando...' : 'Entrar al panel'}
-          </Button>
-        </form>
+
+            <form onSubmit={handleSubmit} className="grid gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-6 shadow-2xl shadow-black/40 backdrop-blur">
+              {error && (
+                <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-200 shadow-sm">
+                  {error}
+                </div>
+              )}
+              <div className="grid gap-1.5">
+                <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Correo electronico</label>
+                <input
+                  className="h-12 w-full rounded-lg border border-white/[0.08] bg-white/[0.06] px-4 text-sm font-semibold text-white outline-none transition placeholder:text-slate-600 hover:border-white/[0.15] focus:border-amber-300/50 focus:bg-white/[0.10] focus:shadow-lg focus:shadow-amber-950/20 focus:ring-4 focus:ring-amber-300/10"
+                  type="email"
+                  placeholder="tu@correo.cl"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <label className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Contrasena</label>
+                <input
+                  className="h-12 w-full rounded-lg border border-white/[0.08] bg-white/[0.06] px-4 text-sm font-semibold text-white outline-none transition placeholder:text-slate-600 hover:border-white/[0.15] focus:border-amber-300/50 focus:bg-white/[0.10] focus:shadow-lg focus:shadow-amber-950/20 focus:ring-4 focus:ring-amber-300/10"
+                  type="password"
+                  placeholder="********"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" disabled={busy} className="mt-1 h-12 w-full rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 text-sm font-black text-slate-950 shadow-lg shadow-amber-950/30 transition-all hover:from-amber-300 hover:to-amber-400 hover:shadow-xl hover:shadow-amber-950/40 active:scale-[0.98]">
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
+                {busy ? 'Ingresando...' : 'Entrar al panel'}
+              </Button>
+            </form>
           </div>
         </section>
       </div>
@@ -243,8 +356,10 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
         <div className="text-center">
-          <Loader2 className="mx-auto h-10 w-10 animate-spin text-amber-400" />
-          <p className="mt-4 text-sm font-medium text-zinc-400">Cargando panel...</p>
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400/20 to-amber-600/20 ring-1 ring-amber-400/20">
+            <Loader2 className="h-7 w-7 animate-spin text-amber-400" />
+          </div>
+          <p className="mt-5 text-sm font-semibold text-slate-400">Cargando panel...</p>
         </div>
       </div>
     );
@@ -256,7 +371,7 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-slate-950 lg:flex">
-      <div className="hidden lg:fixed lg:left-0 lg:top-0 lg:z-30 lg:block lg:h-full lg:w-64 lg:shrink-0 lg:shadow-2xl lg:shadow-black/20">
+      <div className="hidden lg:fixed lg:left-0 lg:top-0 lg:z-30 lg:block lg:h-full lg:w-64 lg:shrink-0 lg:shadow-2xl lg:shadow-black/30">
         <AdminSidebar />
       </div>
 
@@ -264,14 +379,14 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             aria-label="Cerrar menu"
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
             type="button"
           />
-          <div className="relative h-full w-[min(18rem,86vw)] shadow-2xl shadow-black/40">
+          <div className="relative h-full w-[min(18rem,86vw)] shadow-2xl shadow-black/50">
             <button
               aria-label="Cerrar menu"
-              className="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-slate-950/75 text-white shadow-lg backdrop-blur transition hover:border-amber-300/60 hover:text-amber-300"
+              className="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-xl border border-white/[0.08] bg-slate-950/80 text-white shadow-lg backdrop-blur transition hover:border-amber-400/40 hover:text-amber-300"
               onClick={() => setSidebarOpen(false)}
               type="button"
             >
@@ -283,8 +398,9 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="admin-bg min-h-screen w-full lg:ml-64">
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-white/10 bg-slate-950/95 px-4 text-white shadow-lg shadow-slate-950/25 backdrop-blur-xl lg:hidden">
-          <Link href="/admin" className="grid h-10 w-36 place-items-center rounded-lg bg-white px-3 shadow-md shadow-black/20">
+        <AdminTopbar />
+        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-white/[0.06] bg-[#020617]/95 px-4 text-white shadow-lg shadow-slate-950/30 backdrop-blur-xl lg:hidden">
+          <Link href="/admin" className="grid h-10 w-36 place-items-center rounded-lg bg-white/95 px-3 shadow-md shadow-black/30">
             <Image
               alt="Radio Labranza FM+"
               className="h-7 w-auto object-contain"
@@ -295,7 +411,7 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
           </Link>
           <button
             aria-label="Abrir menu"
-            className="grid h-10 w-10 place-items-center rounded-lg bg-amber-400 text-slate-950 shadow-lg shadow-amber-950/25 transition hover:bg-amber-300"
+            className="grid h-10 w-10 place-items-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 shadow-lg shadow-black/30 transition-all hover:from-amber-300 hover:to-amber-400 active:scale-95"
             onClick={() => setSidebarOpen(true)}
             type="button"
           >

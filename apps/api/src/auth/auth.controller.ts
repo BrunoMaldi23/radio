@@ -1,7 +1,11 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import { Role } from '@prisma/client';
+import type { Response } from 'express';
 import { CurrentUser, AuthenticatedUser } from './current-user.decorator';
 import { AuthService } from './auth.service';
+import { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -10,7 +14,14 @@ import { RolesGuard } from './roles.guard';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private readonly bootstrapToken: string;
+
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService
+  ) {
+    this.bootstrapToken = this.config.get<string>('BOOTSTRAP_TOKEN') ?? '';
+  }
 
   @Post('register')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -25,18 +36,39 @@ export class AuthController {
   }
 
   @Post('bootstrap-admin')
-  bootstrapAdmin(@Body() dto: RegisterDto) {
+  bootstrapAdmin(@Body() dto: BootstrapAdminDto, @Headers('x-bootstrap-token') headerToken?: string) {
+    const token = headerToken || dto.bootstrapToken;
+    if (!this.bootstrapToken || token !== this.bootstrapToken) {
+      throw new UnauthorizedException('Token de bootstrap invalido.');
+    }
     return this.authService.bootstrapAdmin(dto);
   }
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) response: Response) {
+    const result = await this.authService.login(dto);
+    const maxAge = this.config.get<string>('JWT_EXPIRES_IN') ?? '8h';
+    const maxAgeMs = maxAge.endsWith('h') ? parseInt(maxAge) * 3600 * 1000 : 8 * 3600 * 1000;
+    response.cookie('radio_token', result.accessToken, {
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: this.config.get<string>('NODE_ENV') === 'production',
+      path: '/',
+      maxAge: maxAgeMs
+    });
+    return result;
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: AuthenticatedUser) {
     return user;
+  }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) response: Response) {
+    response.clearCookie('radio_token', { path: '/' });
+    return { ok: true };
   }
 }

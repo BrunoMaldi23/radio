@@ -25,9 +25,12 @@ const mounts = [
   { name: '/tv', format: 'HLS 720p desde MediaMTX', listeners: 'segun MediaMTX', status: 'Monitoreado' }
 ];
 
+const publicIcecast = process.env.NEXT_PUBLIC_ICECAST_URL || 'https://radio-labranza-fm.vercel.app/radio';
+const publicHls = process.env.NEXT_PUBLIC_TV_HLS_URL || 'https://radio-labranza-fm.vercel.app/hls/tv/index.m3u8';
+
 const relays = [
-  { region: 'Audio publico', url: 'https://159.112.140.93.nip.io/radio', latency: 'directo' },
-  { region: 'TV HLS publico', url: 'https://159.112.140.93.nip.io/hls/tv/index.m3u8', latency: '8-14s aprox.' },
+  { region: 'Audio publico', url: publicIcecast, latency: 'directo' },
+  { region: 'TV HLS publico', url: publicHls, latency: '8-14s aprox.' },
   { region: 'Frontend', url: 'https://radio-labranza-fm.vercel.app', latency: 'Vercel' }
 ];
 
@@ -37,9 +40,9 @@ const ingestProfiles = [
     icon: Video,
     rows: [
       ['Servicio', 'Personalizado'],
-      ['Servidor', 'rtmp://159.112.140.93:1935'],
+      ['Servidor', process.env.NEXT_PUBLIC_MEDIAMTX_RTMP_URL || 'rtmp://localhost:1935'],
       ['Clave de transmision', 'tv'],
-      ['Salida HLS', 'https://159.112.140.93.nip.io/hls/tv/index.m3u8'],
+      ['Salida HLS', publicHls],
       ['Video', '720p, 2500-3000 Kbps, keyframe 2s, sin B-frames'],
       ['Audio', 'AAC 160-192 Kbps, 48 kHz']
     ]
@@ -48,12 +51,12 @@ const ingestProfiles = [
     title: 'Icecast Audio',
     icon: Radio,
     rows: [
-      ['Host publico', '159.112.140.93.nip.io'],
+      ['Host publico', new URL(publicIcecast).hostname],
       ['Puerto interno', '8000'],
       ['Mount', '/radio'],
       ['Usuario', 'source'],
       ['Password', 'Configurada en servidor'],
-      ['Player', 'https://159.112.140.93.nip.io/radio']
+      ['Player', publicIcecast]
     ]
   }
 ];
@@ -61,11 +64,10 @@ const ingestProfiles = [
 export default function StreamAdminPage() {
   return (
     <section className="grid gap-6">
-        <div className="relative overflow-hidden rounded-xl border border-amber-300/30 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 text-white shadow-warmLg sm:p-6">
-          <div className="absolute right-0 top-0 h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-teal-400/20 blur-2xl" />
+        <div className="admin-section-hero relative overflow-hidden rounded-xl p-4 text-white sm:p-6">
           <div className="relative flex flex-col justify-between gap-5 md:flex-row md:items-start">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Admin de transmision</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-200">Admin de transmision</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight text-white">Icecast, HLS y relays</h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-300">
                 Configuracion central para senales de audio/video, mount points, credenciales, metadata y monitoreo.
@@ -73,12 +75,12 @@ export default function StreamAdminPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="outline" className="border-white/15 bg-white/10 text-white hover:bg-white/15">
-                <a href="https://159.112.140.93.nip.io/hls/tv/index.m3u8" rel="noreferrer" target="_blank">
+                <a href={publicHls} rel="noreferrer" target="_blank">
                 <RefreshCw className="h-4 w-4" />
                 Probar senal
                 </a>
               </Button>
-              <Button asChild className="bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950">
+              <Button asChild className="bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 hover:from-amber-300 hover:to-amber-200">
                 <a href="/admin">
                 <Save className="h-4 w-4" />
                 Gestionar contenido
@@ -97,7 +99,7 @@ export default function StreamAdminPage() {
           ].map((item) => {
             const Icon = item.icon;
             return (
-              <article className="rounded-lg border border-slate-900/10 bg-white/80 p-5 shadow-[0_14px_42px_rgba(15,23,42,0.07)] backdrop-blur transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-[0_20px_54px_rgba(15,23,42,0.12)]" key={item.label}>
+              <article className="admin-shell-frame rounded-lg p-5 transition hover:-translate-y-0.5 hover:border-amber-300" key={item.label}>
                 <span className={`grid h-11 w-11 place-items-center rounded-xl ring-1 ${item.tone}`}>
                   <Icon className="h-5 w-5" />
                 </span>
@@ -111,7 +113,7 @@ export default function StreamAdminPage() {
         <StreamRuntimePanel />
 
         <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-          <form className="rounded-lg border border-slate-900/10 bg-white/80 shadow-[0_14px_42px_rgba(15,23,42,0.07)] backdrop-blur">
+          <form className="admin-shell-frame rounded-lg">
             <div className="border-b border-zinc-200 p-5">
               <h2 className="flex items-center gap-2 text-xl font-black text-zinc-950">
                 <Server className="h-5 w-5 text-amber-700" />
@@ -122,7 +124,7 @@ export default function StreamAdminPage() {
               <div className="grid gap-4 lg:grid-cols-2">
                 <label className="grid gap-2">
                   <span className="text-sm font-semibold text-zinc-700">Host publico</span>
-                  <input className="admin-input" defaultValue="159.112.140.93.nip.io" />
+                  <input className="admin-input" defaultValue={new URL(publicIcecast).hostname} />
                 </label>
                 <label className="grid gap-2">
                   <span className="text-sm font-semibold text-zinc-700">Puerto</span>
@@ -182,7 +184,7 @@ export default function StreamAdminPage() {
             </div>
           </form>
 
-          <section className="rounded-lg border border-slate-900/10 bg-white/80 shadow-[0_14px_42px_rgba(15,23,42,0.07)] backdrop-blur">
+          <section className="admin-shell-frame rounded-lg">
             <div className="border-b border-zinc-200 p-5">
               <h2 className="flex items-center gap-2 text-xl font-black text-zinc-950">
                 <Router className="h-5 w-5 text-amber-700" />
@@ -206,7 +208,7 @@ export default function StreamAdminPage() {
           </section>
         </div>
 
-        <section className="rounded-lg border border-slate-900/10 bg-white/80 shadow-[0_14px_42px_rgba(15,23,42,0.07)] backdrop-blur">
+        <section className="admin-shell-frame rounded-lg">
           <div className="border-b border-zinc-200 p-5">
             <h2 className="flex items-center gap-2 text-xl font-black text-zinc-950">
               <Tv className="h-5 w-5 text-amber-700" />
@@ -239,7 +241,7 @@ export default function StreamAdminPage() {
         </section>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <section className="rounded-lg border border-slate-900/10 bg-white/80 shadow-[0_14px_42px_rgba(15,23,42,0.07)] backdrop-blur">
+          <section className="admin-shell-frame rounded-lg">
             <div className="border-b border-zinc-200 p-5">
               <h2 className="flex items-center gap-2 text-xl font-black text-zinc-950">
                 <Cable className="h-5 w-5 text-amber-700" />
@@ -259,7 +261,7 @@ export default function StreamAdminPage() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-slate-900/10 bg-white/80 p-5 shadow-[0_14px_42px_rgba(15,23,42,0.07)] backdrop-blur">
+          <section className="admin-shell-frame rounded-lg p-5">
             <h2 className="flex items-center gap-2 text-xl font-black text-zinc-950">
               <Webhook className="h-5 w-5 text-amber-700" />
               Metadata y automatizaciones
@@ -283,7 +285,7 @@ export default function StreamAdminPage() {
                 <span className="text-sm font-semibold text-zinc-700">Webhook de estado</span>
                 <div className="relative">
                   <Link2 className="absolute left-3 top-3.5 h-4 w-4 text-zinc-400" />
-                  <input className="admin-input pl-9" defaultValue="https://159.112.140.93.nip.io/streaming/runtime-status" />
+                  <input className="admin-input pl-9" defaultValue={`${publicIcecast.replace(/\/radio$/, '')}/streaming/runtime-status`} />
                 </div>
               </label>
             </div>

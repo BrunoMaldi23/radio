@@ -1,6 +1,7 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
@@ -13,6 +14,9 @@ import {
   FileText,
   Gauge,
   ImageIcon,
+  Layers3,
+  ListMusic,
+  Megaphone,
   Pencil,
   Plus,
   RotateCcw,
@@ -23,6 +27,7 @@ import {
   Tags,
   Trash2,
   Type,
+  Wand2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/lib/admin-auth';
@@ -40,10 +45,45 @@ function slugify(value: string) {
 }
 
 const categories = [
-  { id: 'Noticias' as const, label: 'Noticias', color: 'bg-brand-50 text-brand-800 border-brand-300' },
-  { id: 'Lo nuevo' as const, label: 'Lo nuevo', color: 'bg-violet-50 text-violet-800 border-violet-300' },
-  { id: 'Mejores momentos' as const, label: 'Mejores momentos', color: 'bg-rose-50 text-rose-800 border-rose-300' },
-  { id: 'Concursos' as const, label: 'Concursos', color: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
+  {
+    id: 'Noticias' as const,
+    label: 'Noticias',
+    shortLabel: 'Noticias',
+    singular: 'noticia',
+    icon: FileText,
+    eyebrow: 'Mesa editorial',
+    title: 'Noticias con ritmo de radio',
+    description: 'Redacta publicaciones con portada, resumen, cuerpo, estado editorial y control de calidad antes de salir al sitio.',
+    accent: 'from-amber-300 via-orange-300 to-teal-300',
+    tone: 'text-amber-200',
+    chip: 'bg-amber-50 text-amber-800 border-amber-200',
+  },
+  {
+    id: 'Exitos 90,2000' as const,
+    label: 'Exitos 90,2000',
+    shortLabel: 'Exitos',
+    singular: 'especial',
+    icon: Sparkles,
+    eyebrow: 'Musica y memoria',
+    title: 'Especiales 90 y 2000',
+    description: 'Prepara contenidos musicales con lectura rapida, portada fuerte y contexto para la audiencia nostalgica.',
+    accent: 'from-fuchsia-300 via-amber-300 to-sky-300',
+    tone: 'text-fuchsia-100',
+    chip: 'bg-fuchsia-50 text-fuchsia-800 border-fuchsia-200',
+  },
+  {
+    id: 'Rankings semanal' as const,
+    label: 'Rankings semanal',
+    shortLabel: 'Rankings',
+    singular: 'ranking',
+    icon: ListMusic,
+    eyebrow: 'Chart room',
+    title: 'Rankings semanales',
+    description: 'Ordena conteos, notas de canciones y destacados de la semana con una presentacion mas cercana a una lista musical profesional.',
+    accent: 'from-rose-300 via-amber-300 to-emerald-300',
+    tone: 'text-rose-100',
+    chip: 'bg-rose-50 text-rose-800 border-rose-200',
+  },
 ];
 
 type CategoryId = (typeof categories)[number]['id'];
@@ -67,10 +107,6 @@ function readingMinutes(value: string) {
   return Math.max(1, Math.ceil(countWords(value) / 180));
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
 function getEditorialChecks(article: { title: string; excerpt: string; body: string; coverUrl?: string | null; slug?: string }) {
   const bodyWords = countWords(article.body);
   return [
@@ -89,8 +125,8 @@ function getEditorialScore(article: { title: string; excerpt: string; body: stri
 
 function FieldHint({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-slate-900/10 bg-white/70 px-3 py-1 text-xs font-bold text-slate-600">
-      <Icon className="h-3.5 w-3.5 text-amber-600" />
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-slate-900/10 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-500">
+      <Icon className="h-3.5 w-3.5 text-amber-600/80" />
       {label}: <span className="min-w-0 truncate text-slate-950">{value}</span>
     </span>
   );
@@ -101,7 +137,7 @@ function EditorialChecklist({ article }: { article: { title: string; excerpt: st
   const score = getEditorialScore(article);
 
   return (
-    <aside className="rounded-lg border border-slate-900/10 bg-white/75 p-4 shadow-[0_14px_42px_rgba(15,23,42,0.07)] backdrop-blur">
+    <aside className="admin-shell-frame rounded-lg p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Calidad editorial</p>
@@ -133,7 +169,7 @@ function ArticlePreview({ article }: { article: Partial<Article> & { title: stri
   const title = article.title || 'Sin titulo';
   const excerpt = article.excerpt || 'Sin resumen';
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-900/10 bg-white/90 shadow-[0_18px_52px_rgba(15,23,42,0.08)] backdrop-blur">
+    <div className="admin-shell-frame overflow-hidden rounded-lg bg-white/92">
       {article.coverUrl && (
         <div className="relative h-64 w-full overflow-hidden bg-slate-950">
           <img src={article.coverUrl} alt="" className="h-full w-full" style={{ objectFit: 'cover', objectPosition: focal ?? '50% 50%' }} />
@@ -161,8 +197,11 @@ function ArticlePreview({ article }: { article: Partial<Article> & { title: stri
 }
 
 export default function AdminContentPage() {
+  const searchParams = useSearchParams();
   const { token, adminData, saving, setSaving, refreshContent } = useAdminAuth();
-  const [category, setCategory] = useState<CategoryId>('Noticias');
+  const requestedCategory = searchParams.get('category') as CategoryId | null;
+  const initialCategory = categories.some((item) => item.id === requestedCategory) ? requestedCategory! : 'Noticias';
+  const [category, setCategory] = useState<CategoryId>(initialCategory);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | Article['status']>('ALL');
@@ -176,16 +215,22 @@ export default function AdminContentPage() {
   const [formFocal, setFormFocal] = useState<string | undefined>();
   const [formPublish, setFormPublish] = useState(false);
 
-  const [editCover, setEditCover] = useState<string | undefined>();
+  const [editCover, setEditCover] = useState<string | null | undefined>();
   const [editFocal, setEditFocal] = useState<string | undefined>();
   const [editTitle, setEditTitle] = useState('');
   const [editSlug, setEditSlug] = useState('');
   const [editExcerpt, setEditExcerpt] = useState('');
   const [editBody, setEditBody] = useState('');
   const [editStatus, setEditStatus] = useState<string>('DRAFT');
-  const publishedCount = adminData.articles.filter((article) => article.status === 'PUBLISHED').length;
-  const draftCount = adminData.articles.filter((article) => article.status === 'DRAFT').length;
-  const archivedCount = adminData.articles.filter((article) => article.status === 'ARCHIVED').length;
+
+  useEffect(() => {
+    if (categories.some((item) => item.id === requestedCategory)) {
+      setCategory(requestedCategory as CategoryId);
+      setEditingId(null);
+      setSearch('');
+    }
+  }, [requestedCategory]);
+
   const currentDraftScore = getEditorialScore({
     title: formTitle,
     slug: slugify(formSlug || formTitle),
@@ -195,6 +240,12 @@ export default function AdminContentPage() {
   });
   const currentWords = countWords(formBody);
   const currentSlug = slugify(formSlug || formTitle);
+  const activeCategory = categories.find((item) => item.id === category) ?? categories[0];
+  const ActiveCategoryIcon = activeCategory.icon;
+  const activeArticles = adminData.articles.filter((article) => article.category === category);
+  const activePublishedCount = activeArticles.filter((article) => article.status === 'PUBLISHED').length;
+  const activeDraftCount = activeArticles.filter((article) => article.status === 'DRAFT').length;
+  const activeArchivedCount = activeArticles.filter((article) => article.status === 'ARCHIVED').length;
 
   const filteredArticles = useMemo(() => {
     const byCategory = adminData.articles.filter((a) => a.category === category && (statusFilter === 'ALL' || a.status === statusFilter));
@@ -240,7 +291,7 @@ export default function AdminContentPage() {
       await api.updateArticle(token, article.id, {
         title: editTitle, slug: slugify(editSlug || editTitle),
         excerpt: editExcerpt, body: editBody,
-        coverUrl: editCover ?? article.coverUrl,
+        coverUrl: editCover === undefined ? article.coverUrl : editCover,
         status: editStatus as Article['status'],
       });
       setEditingId(null);
@@ -260,48 +311,61 @@ export default function AdminContentPage() {
 
   return (
     <div className="grid gap-6">
-      <div className="ink-panel relative overflow-hidden rounded-xl p-4 text-white sm:p-6">
-        <div className="absolute inset-0 signal-grid opacity-[0.12]" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300 to-transparent" />
-        <div className="relative grid gap-6 xl:grid-cols-[1fr_auto] xl:items-end">
+      <div className="admin-section-hero admin-content-hero relative overflow-hidden rounded-[1.35rem] p-4 text-white sm:p-6">
+        <div className="absolute inset-0 signal-grid opacity-[0.10]" />
+        <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${activeCategory.accent}`} />
+        <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full border border-white/10" />
+        <div className="absolute -bottom-28 right-24 h-56 w-56 rounded-full border border-amber-300/20" />
+        <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1fr)_430px] xl:items-end">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-amber-400 text-slate-950 shadow-lg shadow-black/20">
-              <FileText className="h-7 w-7" />
+            <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${activeCategory.accent} text-slate-950 shadow-lg shadow-black/20`}>
+              <ActiveCategoryIcon className="h-7 w-7" />
             </span>
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">CMS de la radio</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Mesa editorial</h1>
+              <p className={`text-xs font-black uppercase ${activeCategory.tone}`}>{activeCategory.eyebrow}</p>
+              <h1 className="mt-2 text-3xl font-black sm:text-4xl">{activeCategory.title}</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-                Redacta noticias con portada, resumen, cuerpo, estado editorial, vista previa y control de calidad antes de publicar.
+                {activeCategory.description}
               </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white ring-1 ring-white/12">
+                  <Layers3 className="h-3.5 w-3.5 text-amber-200" />
+                  {activeArticles.length} piezas en esta seccion
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white ring-1 ring-white/12">
+                  <Wand2 className="h-3.5 w-3.5 text-amber-200" />
+                  {currentDraftScore}% calidad del borrador
+                </span>
+              </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 text-center lg:grid-cols-4">
-            <div className="rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
-              <p className="text-2xl font-black text-emerald-200">{publishedCount}</p>
+          <div className="grid grid-cols-2 gap-3 text-center">
+            <div className="admin-metric-dark rounded-lg px-4 py-3">
+              <p className="text-2xl font-black text-emerald-200">{activePublishedCount}</p>
               <p className="text-[10px] font-bold uppercase tracking-normal text-emerald-200/70">Publicados</p>
             </div>
-            <div className="rounded-lg border border-white/10 bg-white/10 px-4 py-3">
-              <p className="text-2xl font-black text-zinc-300">{draftCount}</p>
+            <div className="admin-metric-dark rounded-lg px-4 py-3">
+              <p className="text-2xl font-black text-zinc-300">{activeDraftCount}</p>
               <p className="text-[10px] font-bold uppercase tracking-normal text-zinc-400">Borradores</p>
             </div>
-            <div className="rounded-lg border border-rose-400/20 bg-rose-400/10 px-4 py-3">
-              <p className="text-2xl font-black text-rose-200">{archivedCount}</p>
+            <div className="admin-metric-dark rounded-lg px-4 py-3">
+              <p className="text-2xl font-black text-rose-200">{activeArchivedCount}</p>
               <p className="text-[10px] font-bold uppercase tracking-normal text-rose-200/70">Archivados</p>
             </div>
-            <div className="rounded-lg border border-amber-400/20 bg-amber-400/10 px-4 py-3">
-              <p className="text-2xl font-black text-amber-200">{currentDraftScore}%</p>
-              <p className="text-[10px] font-bold uppercase tracking-normal text-amber-200/70">Borrador</p>
+            <div className="admin-metric-dark rounded-lg px-4 py-3">
+              <p className="text-2xl font-black text-amber-200">{filteredArticles.length}</p>
+              <p className="text-[10px] font-bold uppercase tracking-normal text-amber-200/70">Filtrados</p>
             </div>
           </div>
         </div>
       </div>
 
-      <section className="grid gap-4 rounded-lg border border-slate-900/10 bg-white/75 p-4 shadow-[0_18px_52px_rgba(15,23,42,0.08)] backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="admin-shell-frame overflow-hidden rounded-[1.15rem]">
+        <div className="grid gap-4 border-b border-slate-900/10 bg-white/60 p-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Biblioteca editorial</p>
-            <h2 className="mt-1 text-xl font-black text-slate-950">Contenido publicado y borradores</h2>
+            <p className="text-xs font-black uppercase text-amber-700">Biblioteca editorial</p>
+            <h2 className="mt-1 text-xl font-black text-slate-950">Cabina de contenido</h2>
+            <p className="mt-1 text-sm text-slate-500">Cambia de seccion, revisa estados y encuentra rapido lo que hay que publicar.</p>
           </div>
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -313,38 +377,57 @@ export default function AdminContentPage() {
             />
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {categories.map((cat) => (
+
+        <div className="grid gap-3 p-4 lg:grid-cols-3">
+          {categories.map((cat) => {
+            const cabina =
+              cat.id === 'Noticias' ? { idle: 'border-amber-200 bg-amber-50/60 text-slate-800 hover:bg-amber-50 hover:border-amber-300 hover:shadow-md', active: 'border-amber-300 bg-amber-100 text-amber-900 shadow-lg shadow-amber-200/40', iconIdle: 'bg-amber-100 text-amber-700', iconActive: 'bg-amber-200 text-amber-800' } :
+              cat.id === 'Exitos 90,2000' ? { idle: 'border-fuchsia-200 bg-fuchsia-50/60 text-slate-800 hover:bg-fuchsia-50 hover:border-fuchsia-300 hover:shadow-md', active: 'border-fuchsia-300 bg-fuchsia-100 text-fuchsia-900 shadow-lg shadow-fuchsia-200/40', iconIdle: 'bg-fuchsia-100 text-fuchsia-700', iconActive: 'bg-fuchsia-200 text-fuchsia-800' } :
+              { idle: 'border-rose-200 bg-rose-50/60 text-slate-800 hover:bg-rose-50 hover:border-rose-300 hover:shadow-md', active: 'border-rose-300 bg-rose-100 text-rose-900 shadow-lg shadow-rose-200/40', iconIdle: 'bg-rose-100 text-rose-700', iconActive: 'bg-rose-200 text-rose-800' };
+            const idleStyle = cabina.idle;
+            const iconIdle = cabina.iconIdle;
+            return (
             <button
               key={cat.id}
               onClick={() => { setCategory(cat.id); setEditingId(null); setSearch(''); }}
-              className={`rounded-lg border px-4 py-2 text-sm font-black transition-all duration-200 ${
-                category === cat.id
-                  ? 'border-amber-300 bg-slate-950 text-amber-200 shadow-lg shadow-slate-950/10'
-                  : 'border-slate-900/10 bg-white/80 text-slate-600 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-800'
+              className={`group relative overflow-hidden rounded-[1rem] border p-4 text-left transition-all duration-200 ${
+                category === cat.id ? cabina.active : idleStyle
               }`}
               type="button"
             >
-              {cat.label}
-              <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${category === cat.id ? 'bg-white/10 text-amber-100' : 'bg-slate-100 text-slate-500'}`}>
-                {adminData.articles.filter((a) => a.category === cat.id).length}
+              <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${cat.accent}`} />
+              <span className="flex items-start justify-between gap-3">
+                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${category === cat.id ? cabina.iconActive : iconIdle}`}>
+                  <cat.icon className="h-5 w-5" />
+                </span>
+                <span className={`rounded-full border px-2.5 py-1 text-xs font-black ${
+                  category === cat.id
+                    ? cat.id === 'Noticias' ? 'border-amber-300 bg-amber-200 text-amber-800'
+                    : cat.id === 'Exitos 90,2000' ? 'border-fuchsia-300 bg-fuchsia-200 text-fuchsia-800'
+                    : 'border-rose-300 bg-rose-200 text-rose-800'
+                    : cat.chip
+                }`}>
+                  {adminData.articles.filter((a) => a.category === cat.id).length}
+                </span>
               </span>
+              <span className="mt-4 block text-base font-black">{cat.shortLabel}</span>
+              <span className={`mt-1 block text-xs leading-5 ${category === cat.id ? 'text-slate-600' : 'text-slate-600'}`}>{cat.description}</span>
             </button>
-          ))}
+            );
+          })}
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-900/10 pt-4">
+
+        <div className="grid gap-4 border-t border-slate-900/10 bg-slate-50/55 p-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-center">
           <div className="flex flex-wrap gap-2">
             {[
-              { id: 'ALL' as const, label: 'Todos' },
-              { id: 'DRAFT' as const, label: 'Borradores' },
-              { id: 'PUBLISHED' as const, label: 'Publicados' },
-              { id: 'ARCHIVED' as const, label: 'Archivados' },
+              { id: 'ALL' as const, label: 'Todos', colors: { active: 'border-slate-700 bg-slate-900 text-white hover:bg-slate-800', idle: 'border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-800' } },
+              { id: 'DRAFT' as const, label: 'Borradores', colors: { active: 'border-zinc-400 bg-zinc-200 text-zinc-800', idle: 'border-zinc-300 bg-zinc-50 text-zinc-500 hover:border-zinc-400 hover:text-zinc-700' } },
+              { id: 'PUBLISHED' as const, label: 'Publicados', colors: { active: 'border-emerald-500 bg-emerald-100 text-emerald-800', idle: 'border-emerald-300 bg-emerald-50 text-emerald-600 hover:border-emerald-400 hover:text-emerald-700' } },
+              { id: 'ARCHIVED' as const, label: 'Archivados', colors: { active: 'border-rose-400 bg-rose-100 text-rose-800', idle: 'border-rose-300 bg-rose-50 text-rose-500 hover:border-rose-400 hover:text-rose-700' } },
             ].map((item) => (
               <button
                 className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${
-                  statusFilter === item.id
-                    ? 'border-teal-300 bg-teal-50 text-teal-800'
-                    : 'border-slate-900/10 bg-white/70 text-slate-500 hover:border-teal-300 hover:text-teal-700'
+                  statusFilter === item.id ? item.colors.active : item.colors.idle
                 }`}
                 key={item.id}
                 onClick={() => setStatusFilter(item.id)}
@@ -362,15 +445,44 @@ export default function AdminContentPage() {
         </div>
       </section>
 
+      <section className="admin-ops-strip grid gap-3 rounded-[1.1rem] p-3 sm:grid-cols-3">
+        {[
+          { label: 'Publicados', value: `${activePublishedCount}/${activeArticles.length || 0}`, icon: CheckCircle2, tone: 'admin-ops-ok' },
+          { label: 'Borradores', value: String(activeDraftCount), icon: ClipboardCheck, tone: 'admin-ops-wait' },
+          { label: 'Archivados', value: String(activeArchivedCount), icon: Archive, tone: 'admin-ops-archive' },
+        ].map((item) => {
+          const Icon = item.icon;
+          return (
+            <div className={`admin-ops-card ${item.tone}`} key={item.label}>
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl">
+                <Icon className="h-4 w-4" />
+              </span>
+              <span>
+                <span className="block text-[11px] font-black uppercase text-slate-500">{item.label}</span>
+                <span className="block text-xl font-black text-slate-950">{item.value}</span>
+              </span>
+            </div>
+          );
+        })}
+      </section>
+
       {/* Articles List */}
-      <div className="overflow-hidden rounded-lg border border-slate-900/10 bg-white/80 shadow-[0_18px_52px_rgba(15,23,42,0.08)] backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-900/10 bg-white/60 px-4 py-4 sm:px-6">
-          <h2 className="flex items-center gap-2 text-base font-black text-slate-950">
-            <ClipboardCheck className="h-4 w-4 text-amber-600" />
-            {category}
-            <span className="text-sm font-normal text-slate-400">({filteredArticles.length} articulos)</span>
-          </h2>
-          <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-amber-200">Gestion editorial</span>
+      <div className="admin-editorial-list overflow-hidden rounded-[1.25rem]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-900/10 bg-white/72 px-4 py-4 sm:px-6">
+          <div>
+            <p className="flex items-center gap-2 text-[11px] font-black uppercase text-amber-700">
+              <Megaphone className="h-3.5 w-3.5" />
+              Gestion editorial
+            </p>
+            <h2 className="mt-1 flex items-center gap-2 text-lg font-black text-slate-950">
+              {category}
+              <span className="rounded-full bg-slate-950 px-2.5 py-1 text-xs font-black text-amber-200">{filteredArticles.length} articulos</span>
+            </h2>
+          </div>
+          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-800 ring-1 ring-emerald-200">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.14)]" />
+            CRUD operativo
+          </span>
         </div>
 
         {filteredArticles.length === 0 ? (
@@ -378,83 +490,87 @@ export default function AdminContentPage() {
             {search ? 'No se encontraron articulos.' : 'No hay contenido en esta categoria.'}
           </div>
         ) : (
-          <div className="divide-y divide-zinc-100">
-            {filteredArticles.map((article) => {
+          <div className="admin-content-table-wrap">
+            <div className="admin-content-table-head">
+              <span>#</span>
+              <span>Articulo</span>
+              <span>Estado</span>
+              <span>Slug</span>
+              <span>Lectura</span>
+              <span>Publicado</span>
+              <span>Acciones</span>
+            </div>
+            {filteredArticles.map((article, index) => {
               const st = statusConfig[article.status] ?? statusConfig.DRAFT;
               const StIcon = st.icon;
               return (
-                <div key={article.id}>
-                  <div className="grid gap-4 px-4 py-5 transition hover:bg-amber-50/40 sm:px-6 xl:grid-cols-[1fr_auto]">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                      <div className="relative h-44 w-full shrink-0 overflow-hidden rounded-lg bg-slate-950 shadow-sm ring-1 ring-slate-900/10 sm:h-20 sm:w-32">
-                        {article.coverUrl ? (
-                          <img src={article.coverUrl} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="grid h-full w-full place-items-center text-amber-300">
-                            <ImageIcon className="h-6 w-6" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2.5">
-                          <p className="truncate text-base font-black text-slate-950">{article.title}</p>
-                          <span className={`admin-badge ${st.badge}`}>
-                            <StIcon className="mr-1 inline h-3 w-3" />
-                            {st.label}
-                          </span>
-                        </div>
-                        <p className="mt-1 line-clamp-2 max-w-3xl text-sm leading-6 text-slate-600">{article.excerpt}</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <FieldHint icon={Tags} label="Slug" value={article.slug} />
-                          <FieldHint icon={Type} label="Palabras" value={String(countWords(article.body))} />
-                          <FieldHint icon={CalendarClock} label="Lectura" value={`${readingMinutes(article.body)} min`} />
-                          {article.publishedAt && <FieldHint icon={Send} label="Publicado" value={new Date(article.publishedAt).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })} />}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                      {article.status === 'DRAFT' && (
-                        <Button className="border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-400 transition-all" disabled={saving} onClick={() => runAction(() => api.updateArticle(token, article.id, { status: 'PUBLISHED' }), 'Articulo publicado!')} type="button" variant="outline">
-                          <CheckCircle2 className="h-3.5 w-3.5" />Publicar
-                        </Button>
-                      )}
-                      {article.status === 'PUBLISHED' && (
-                        <Button className="border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:border-violet-400 transition-all" disabled={saving} onClick={() => runAction(() => api.updateArticle(token, article.id, { status: 'ARCHIVED' }), 'Articulo archivado.')} type="button" variant="outline">
-                          <Archive className="h-3.5 w-3.5" />Archivar
-                        </Button>
-                      )}
-                      {article.status === 'ARCHIVED' && (
-                        <Button className="border-zinc-300 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 transition-all" disabled={saving} onClick={() => runAction(() => api.updateArticle(token, article.id, { status: 'DRAFT' }), 'Restaurado a borrador.')} type="button" variant="outline">
-                          <RotateCcw className="h-3.5 w-3.5" />Restaurar
-                        </Button>
-                      )}
-                      <Button
-                        className={`transition-all ${editingId === article.id ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-zinc-300 bg-white text-zinc-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700'}`}
-                        disabled={saving}
-                        onClick={() => editingId === article.id ? setEditingId(null) : startEdit(article)}
-                        type="button"
-                        variant="outline"
-                       
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        {editingId === article.id ? 'Cerrar' : 'Editar'}
+                <div className="admin-article-row admin-content-table-row group" key={article.id}>
+                  <div className="admin-row-index">
+                    <span>{String(index + 1).padStart(2, '0')}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-slate-950">{article.title}</p>
+                    <p className="mt-0.5 line-clamp-1 text-xs font-medium text-slate-500">{article.excerpt || 'Sin resumen'}</p>
+                  </div>
+                  <span className={`admin-badge ${st.badge}`}>
+                    <StIcon className="mr-1 inline h-3 w-3" />
+                    {st.label}
+                  </span>
+                  <span className="admin-table-chip">
+                    <Tags className="h-3 w-3" />
+                    <span className="truncate">{article.slug}</span>
+                  </span>
+                  <span className="admin-table-chip">
+                    <Type className="h-3 w-3" />
+                    {countWords(article.body)} palabras
+                  </span>
+                  <span className="admin-table-chip">
+                    <Send className="h-3 w-3" />
+                    {article.publishedAt ? new Date(article.publishedAt).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Sin fecha'}
+                  </span>
+                  <div className="admin-row-actions">
+                    {article.status === 'DRAFT' && (
+                      <Button aria-label="Publicar articulo" title="Publicar" className="admin-action-publish" disabled={saving} onClick={() => runAction(() => api.updateArticle(token, article.id, { status: 'PUBLISHED' }), 'Articulo publicado!')} type="button" variant="outline">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
                       </Button>
-                      <Button
-                        className="border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-400 transition-all"
-                        disabled={saving}
-                        onClick={() => { if (window.confirm('Eliminar este articulo?')) runAction(() => api.deleteArticle(token, article.id), 'Articulo eliminado.'); }}
-                        type="button"
-                        variant="outline"
-                       
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                    {article.status === 'PUBLISHED' && (
+                      <Button aria-label="Archivar articulo" title="Archivar" className="admin-action-archive" disabled={saving} onClick={() => runAction(() => api.updateArticle(token, article.id, { status: 'ARCHIVED' }), 'Articulo archivado.')} type="button" variant="outline">
+                        <Archive className="h-3.5 w-3.5" />
                       </Button>
-                    </div>
+                    )}
+                    {article.status === 'ARCHIVED' && (
+                      <Button aria-label="Restaurar articulo" title="Restaurar" className="admin-action-restore" disabled={saving} onClick={() => runAction(() => api.updateArticle(token, article.id, { status: 'DRAFT' }), 'Restaurado a borrador.')} type="button" variant="outline">
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    <Button
+                      aria-label={editingId === article.id ? 'Cerrar editor' : 'Editar articulo'}
+                      title={editingId === article.id ? 'Cerrar' : 'Editar'}
+                      className={editingId === article.id ? 'admin-action-edit-active' : 'admin-action-edit'}
+                      disabled={saving}
+                      onClick={() => editingId === article.id ? setEditingId(null) : startEdit(article)}
+                      type="button"
+                      variant="outline"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      aria-label="Eliminar articulo"
+                      title="Eliminar"
+                      className="admin-action-delete"
+                      disabled={saving}
+                      onClick={() => { if (window.confirm('Eliminar este articulo?')) runAction(() => api.deleteArticle(token, article.id), 'Articulo eliminado.'); }}
+                      type="button"
+                      variant="outline"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
 
                   {/* Edit Panel */}
                   {editingId === article.id && (
-                    <div className="border-t border-slate-900/10 bg-gradient-to-b from-amber-50/70 to-white/80 px-4 py-5 sm:px-6 sm:py-6">
+                    <div className="admin-content-edit-panel border-t border-slate-900/10 bg-gradient-to-b from-amber-50/70 to-white/80 px-4 py-5 sm:px-6 sm:py-6">
                       <div className="mb-5 flex items-center gap-2">
                         <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-950">
                           <Pencil className="h-4 w-4 text-amber-300" />
@@ -473,7 +589,14 @@ export default function AdminContentPage() {
                               <input className="admin-input" value={editSlug} onChange={(e) => setEditSlug(e.target.value)} placeholder="Slug" />
                             </div>
                           </div>
-                          <ImageUpload value={editCover} onChange={setEditCover} focalPoint={editFocal} onFocalChange={setEditFocal} label="Imagen de portada" />
+                          <ImageUpload
+                            token={token}
+                            value={editCover}
+                            onChange={(value) => setEditCover(value ?? null)}
+                            focalPoint={editFocal}
+                            onFocalChange={setEditFocal}
+                            label="Imagen de portada"
+                          />
                           <div className="grid gap-2">
                             <label className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">Resumen editorial</label>
                           <textarea
@@ -498,8 +621,8 @@ export default function AdminContentPage() {
                             </select>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              <Button className="border-slate-900/10 bg-white text-slate-700 hover:bg-slate-50" disabled={saving} onClick={() => setEditingId(null)} type="button" variant="outline">Cancelar</Button>
-                              <Button className="bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 shadow-md shadow-amber-950/20 transition-all hover:shadow-lg hover:shadow-amber-950/30" disabled={saving} type="button" onClick={() => handleEditSave(article)}>
+                              <Button className="admin-action-cancel transition-all" disabled={saving} onClick={() => setEditingId(null)} type="button" variant="outline">Cancelar</Button>
+                              <Button className="admin-action-save transition-all" disabled={saving} type="button" onClick={() => handleEditSave(article)}>
                                 <Save className="h-4 w-4" />
                                 {saving ? 'Guardando...' : 'Guardar cambios'}
                               </Button>
@@ -514,7 +637,7 @@ export default function AdminContentPage() {
                               slug: editSlug || article.slug,
                               excerpt: editExcerpt || article.excerpt,
                               body: editBody || article.body,
-                              coverUrl: editCover ?? article.coverUrl,
+                              coverUrl: editCover === undefined ? article.coverUrl : editCover,
                             }}
                           />
                           <ArticlePreview
@@ -522,7 +645,7 @@ export default function AdminContentPage() {
                               title: editTitle || article.title,
                               excerpt: editExcerpt || article.excerpt,
                               body: editBody || article.body,
-                              coverUrl: editCover ?? article.coverUrl ?? undefined,
+                              coverUrl: editCover === undefined ? article.coverUrl ?? undefined : editCover ?? undefined,
                               coverFocal: editFocal ?? article.coverFocal ?? undefined,
                             }}
                           />
@@ -539,25 +662,27 @@ export default function AdminContentPage() {
       </div>
 
       {/* New Article Form */}
-      <div className="overflow-hidden rounded-xl border border-slate-900/10 bg-white/80 shadow-[0_22px_68px_rgba(15,23,42,0.1)] backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-900/10 bg-slate-950 px-4 py-5 text-white sm:px-6">
+      <div className="admin-shell-frame overflow-hidden rounded-xl">
+        <div className="flex min-h-14 items-center justify-between gap-4 border-b border-white/10 bg-[#020617] px-4 py-3 text-white sm:px-6">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-amber-400 text-slate-950">
-              <Plus className="h-5 w-5" />
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-400 text-slate-950 shadow-sm shadow-amber-950/30">
+              <Plus className="h-4.5 w-4.5" />
             </span>
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">Redaccion</p>
-              <h2 className="text-xl font-black">Nuevo articulo en {category.toLowerCase()}</h2>
+              <p className="text-[10px] font-black uppercase leading-none tracking-[0.14em] text-amber-300">Redaccion</p>
+              <h2 className="mt-1 text-sm font-black leading-none tracking-tight sm:text-base">
+                Nuevo articulo en {category.toLowerCase()}
+              </h2>
             </div>
           </div>
           <Button
             variant="outline"
-            className={`transition-all ${showPreview ? 'border-amber-300 bg-amber-400 text-slate-950' : 'border-white/20 bg-white/10 text-white hover:bg-white/20'}`}
+            className="h-8 shrink-0 rounded-md border-amber-400 bg-amber-400 px-3 text-xs font-black text-slate-950 shadow-sm shadow-amber-950/25 transition-all hover:border-amber-300 hover:bg-amber-300 hover:text-slate-950"
             onClick={() => setShowPreview(!showPreview)}
             type="button"
            
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="h-3.5 w-3.5" />
             {showPreview ? 'Editor' : 'Previsualizar'}
           </Button>
         </div>
@@ -631,7 +756,7 @@ export default function AdminContentPage() {
                   <ImageIcon className="h-4 w-4 text-amber-600" />
                   <h3 className="text-sm font-black uppercase tracking-[0.12em] text-slate-600">Portada y encuadre</h3>
                 </div>
-                <ImageUpload value={formCover} onChange={setFormCover} focalPoint={formFocal} onFocalChange={setFormFocal} label="Imagen principal" />
+                <ImageUpload token={token} value={formCover} onChange={setFormCover} focalPoint={formFocal} onFocalChange={setFormFocal} label="Imagen principal" />
               </section>
 
               <section className="rounded-lg border border-slate-900/10 bg-white/70 p-4">
@@ -678,14 +803,14 @@ export default function AdminContentPage() {
                 </div>
                 <div className="mt-4 grid gap-2">
                   <Button
-                    className="h-12 bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 shadow-lg shadow-amber-950/20 transition-all hover:shadow-xl hover:shadow-amber-950/30"
+                    className="admin-action-save h-12 transition-all"
                     disabled={saving}
                     type="submit"
                   >
                     {formPublish ? <Send className="h-4 w-4" /> : <Save className="h-4 w-4" />}
                     {saving ? 'Guardando...' : formPublish ? 'Publicar articulo' : 'Guardar borrador'}
                   </Button>
-                  <Button className="border-slate-900/10 bg-white text-slate-700 hover:bg-slate-50" onClick={resetForm} type="button" variant="outline">
+                  <Button className="admin-action-cancel" onClick={resetForm} type="button" variant="outline">
                     Limpiar editor
                   </Button>
                 </div>

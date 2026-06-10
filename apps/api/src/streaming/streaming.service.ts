@@ -17,13 +17,64 @@ export class StreamingService {
 
   findOverview() {
     return this.prisma.streamServer.findMany({
-      include: {
-        mounts: { orderBy: { path: 'asc' } },
-        relays: { orderBy: { region: 'asc' } },
+      select: {
+        id: true,
+        name: true,
+        protocol: true,
+        publicHost: true,
+        internalHost: true,
+        port: true,
+        tlsEnabled: true,
+        encoder: true,
+        codec: true,
+        bitrateKbps: true,
+        fallbackPlaylist: true,
+        isPrimary: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        mounts: {
+          select: {
+            id: true,
+            path: true,
+            displayName: true,
+            format: true,
+            bitrateKbps: true,
+            status: true,
+            listeners: true,
+            maxListeners: true,
+            publicUrl: true,
+            hlsUrl: true,
+            isDefault: true,
+            createdAt: true,
+            updatedAt: true
+          },
+          orderBy: { path: 'asc' }
+        },
+        relays: {
+          select: {
+            id: true,
+            region: true,
+            url: true,
+            latencyMs: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true
+          },
+          orderBy: { region: 'asc' }
+        },
         metadata: {
           where: { isCurrent: true },
           orderBy: { createdAt: 'desc' },
-          take: 1
+          take: 1,
+          select: {
+            id: true,
+            title: true,
+            artist: true,
+            artworkUrl: true,
+            source: true,
+            createdAt: true
+          }
         }
       },
       orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }]
@@ -35,14 +86,9 @@ export class StreamingService {
       audio: {
         name: 'Icecast Audio',
         server: process.env.ICECAST_PUBLIC_URL ?? 'http://localhost:8000/radio',
-        host: 'localhost',
-        port: 8000,
         mount: '/radio',
         username: 'source',
-        passwordRef: 'secret://radio/icecast/source',
-        recommendedEncoder: 'BUTT, Mixxx, Liquidsoap or FFmpeg',
-        ffmpegExample:
-          'ffmpeg -re -i input.mp3 -content_type audio/mpeg -f mp3 icecast://source:hackme-source@localhost:8000/radio'
+        recommendedEncoder: 'BUTT, Mixxx, Liquidsoap or FFmpeg'
       },
       video: {
         name: 'MediaMTX TV',
@@ -50,7 +96,6 @@ export class StreamingService {
         obsServer: process.env.MEDIAMTX_RTMP_URL ?? 'rtmp://localhost:1935',
         obsStreamKey: 'tv',
         hlsPlaybackUrl: process.env.MEDIAMTX_HLS_URL ?? 'http://localhost:8888/tv/index.m3u8',
-        srtPublishUrl: 'srt://localhost:8890?streamid=publish:tv',
         recommendedVideoBitrateKbps: 4500,
         recommendedAudioBitrateKbps: 160,
         keyframeIntervalSeconds: 2
@@ -68,7 +113,7 @@ export class StreamingService {
       fetch(`${mediaMtxApiUrl}/v3/paths/list`).then(async (response) => {
         const body = await response.json().catch(() => null);
         if (!response.ok) {
-          throw new Error(body?.error ?? `MediaMTX API responded ${response.status}`);
+          throw new Error(`MediaMTX API error (${response.status})`);
         }
 
         return body;

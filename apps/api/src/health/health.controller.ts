@@ -11,7 +11,6 @@ export class HealthController {
 
     return {
       ok: true,
-      service: 'radio-labranza-api',
       timestamp: new Date().toISOString()
     };
   }

@@ -28,6 +28,21 @@ export class ArticlesController {
     return this.articlesService.findBySlug(slug);
   }
 
+  @Post(':id/attend')
+  attend(@Param('id', ParseIntPipe) id: number) {
+    return this.articlesService.attend(id);
+  }
+
+  @Post(':id/like')
+  like(@Param('id', ParseIntPipe) id: number) {
+    return this.articlesService.like(id);
+  }
+
+  @Post('community-submissions')
+  createCommunitySubmission(@Body() dto: CreateArticleDto) {
+    return this.articlesService.createCommunitySubmission(dto);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.EDITOR, Role.OPERATOR)

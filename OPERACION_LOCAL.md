@@ -33,10 +33,10 @@ La senal queda en:
 
 - Admin: `http://localhost:8000/admin/`
 - Usuario admin: `admin`
-- Password admin dev: `hackme-admin`
+- Password admin dev: configurar en `.env`
 - Mount radio: `/radio`
 - Source user: `source`
-- Source password dev: `hackme-source`
+- Source password dev: configurar en `.env`
 
 Icecast mostrara "Sin monturas" hasta que un encoder publique audio en `/radio`.
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { api, type Article, type Frequency, type Program, type RankingTrack, type User } from '@/lib/api';
 
 type AdminData = {
@@ -12,7 +12,7 @@ type AdminData = {
 };
 
 type AuthContext = {
-  token: string;
+  token: string | undefined;
   user: User | null;
   adminData: AdminData;
   loading: boolean;
@@ -26,7 +26,7 @@ type AuthContext = {
 const AuthCtx = createContext<AuthContext | null>(null);
 
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState('');
+  const [token, setToken] = useState<string | undefined>(undefined);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,56 +34,65 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     articles: [], programs: [], ranking: [], frequencies: [], users: []
   });
 
+  // Track mounted state
+  const mountedRef = useRef(true);
+
   useEffect(() => {
-    const savedToken = window.localStorage.getItem('radioLabranzaAdminToken');
-    if (!savedToken) {
-      setLoading(false);
-      return;
-    }
-    setToken(savedToken);
-    api.me(savedToken)
-      .then((currentUser) => {
-        setUser(currentUser);
-        return refreshAll(savedToken, currentUser);
-      })
-      .catch(() => {
-        window.localStorage.removeItem('radioLabranzaAdminToken');
-        setToken('');
-        setUser(null);
-      })
-      .finally(() => setLoading(false));
+    return () => { mountedRef.current = false; };
   }, []);
 
-  async function refreshAll(nextToken = token, currentUser = user) {
-    if (!nextToken) return;
-    try {
-      const [articles, programs, ranking, frequencies, users] = await Promise.all([
-        api.adminArticles(nextToken),
-        api.adminPrograms(nextToken),
-        api.ranking(),
-        api.adminFrequencies(nextToken),
-        currentUser?.role === 'ADMIN' ? api.users(nextToken) : Promise.resolve([])
-      ]);
-      setAdminData({ articles, programs, ranking, frequencies, users });
-    } catch {
-      // silent
-    }
+  useEffect(() => {
+    // Try to restore session via httpOnly cookie (sent automatically by browser)
+    api.me()
+      .then((currentUser) => {
+        if (!mountedRef.current) return;
+        setUser(currentUser);
+        return refreshAll(currentUser);
+      })
+      .catch(() => {
+        if (!mountedRef.current) return;
+        setUser(null);
+      })
+      .finally(() => {
+        if (mountedRef.current) setLoading(false);
+      });
+  }, []);
+
+  async function refreshAll(currentUser = user) {
+    if (!currentUser) return;
+
+    const [articles, programs, ranking, frequencies, users] = await Promise.all([
+      api.adminArticles(undefined).catch(() => api.articles()),
+      api.adminPrograms(undefined).catch(() => [] as Program[]),
+      api.adminRanking(undefined).catch(() => api.ranking()).catch(() => [] as RankingTrack[]),
+      api.adminFrequencies(undefined).catch(() => [] as Frequency[]),
+      currentUser.role === 'ADMIN' ? api.users(undefined).catch(() => [] as User[]) : Promise.resolve([] as User[])
+    ]);
+
+    if (!mountedRef.current) return;
+    setAdminData((current) => ({
+      articles,
+      programs,
+      ranking,
+      frequencies,
+      users: currentUser.role === 'ADMIN' ? users : current.users
+    }));
   }
 
   const refreshContent = useCallback(async () => {
     await refreshAll();
-  }, [token, user]);
+  }, [user]);
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await api.login(email, password);
     setToken(response.accessToken);
     setUser(response.user);
-    window.localStorage.setItem('radioLabranzaAdminToken', response.accessToken);
-    await refreshAll(response.accessToken, response.user);
+    await refreshAll(response.user);
   }, []);
 
-  const logout = useCallback(() => {
-    window.localStorage.removeItem('radioLabranzaAdminToken');
+  const logout = useCallback(async () => {
+    // Logout from server to clear httpOnly cookie
+    try { await api.logout(); } catch { /* ignore */ }
     setToken('');
     setUser(null);
     setAdminData({ articles: [], programs: [], ranking: [], frequencies: [], users: [] });

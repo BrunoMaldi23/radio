@@ -1,12 +1,11 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, CalendarDays, Gift, Headphones, Mic2, Music2, Play, Radio, Sparkles, Tv } from 'lucide-react';
+import { ArrowRight, CalendarDays, Headphones, Mic2, Music2, Play, Radio, Sparkles, Tv } from 'lucide-react';
 import { ArticleCard } from '@/components/article-card';
-import { ProgramCard } from '@/components/program-card';
 import { SectionHeading } from '@/components/section-heading';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
-import { mapArticle, mapProgram } from '@/lib/content-mappers';
+import { mapArticle } from '@/lib/content-mappers';
 
 const liveSignals = [
   { title: 'Senal de Audio', description: 'Radio Labranza FM+ en vivo todo el dia', icon: Radio },
@@ -15,19 +14,18 @@ const liveSignals = [
 ];
 
 async function getHomeData() {
-  const [articles, moments, contests, programs, ranking] = await Promise.all([
+  const [articles, newArticles, moments, ranking] = await Promise.all([
     api.articles('Noticias').then((items) => items.map(mapArticle)).catch(() => []),
-    api.articles('Mejores momentos').then((items) => items.map(mapArticle)).catch(() => []),
-    api.articles('Concursos').then((items) => items.map(mapArticle)).catch(() => []),
-    api.programsPublic().then((items) => items.map(mapProgram)).catch(() => []),
+    api.articles('Exitos 90,2000').then((items) => items.map(mapArticle)).catch(() => []),
+    api.articles('Rankings semanal').then((items) => items.map(mapArticle)).catch(() => []),
     api.ranking().catch(() => [])
   ]);
 
-  return { articles, moments, contests, programs, ranking };
+  return { articles, newArticles, moments, ranking };
 }
 
 export default async function Home() {
-  const { articles, moments, contests, programs, ranking } = await getHomeData();
+  const { articles, newArticles, moments, ranking } = await getHomeData();
 
   return (
     <div className="mx-auto grid max-w-7xl gap-10">
@@ -45,7 +43,7 @@ export default async function Home() {
             </p>
             <h1 className="mt-3 max-w-xl text-4xl font-black leading-none tracking-tight sm:text-6xl">La radio local con pulso digital</h1>
             <p className="mt-5 max-w-lg text-base leading-7 text-slate-300">
-              Musica, noticias, TV en vivo, concursos y comunidad en una experiencia hecha para sonar cercana y verse moderna.
+              Musica, noticias, TV en vivo y comunidad en una experiencia hecha para sonar cercana y verse moderna.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -104,8 +102,8 @@ export default async function Home() {
         })}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-stretch">
-        <div>
+      <section className="grid gap-6 lg:grid-cols-3 lg:items-start">
+        <div className="lg:col-span-2">
           <SectionHeading eyebrow="Actualidad local" href="/noticias" title="Noticias destacadas" />
           {articles.length ? (
             <div className="grid gap-4 md:grid-cols-2">
@@ -152,20 +150,6 @@ export default async function Home() {
               )}
             </div>
           </div>
-
-          {contests.slice(0, 1).map((contest) => (
-            <ArticleCard article={contest} key={contest.slug} />
-          ))}
-          {!contests.length && (
-            <Link className="radio-panel rounded-lg p-5" href="/concursos">
-              <p className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-amber-700">
-                <Gift className="h-4 w-4" />
-                Concursos
-              </p>
-              <h3 className="mt-2 text-xl font-black text-slate-950">Listo para activar campanas</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">Publica concursos desde admin y se mostraran aqui.</p>
-            </Link>
-          )}
         </aside>
       </section>
 
@@ -191,22 +175,22 @@ export default async function Home() {
       </section>
 
       <section>
-        <SectionHeading eyebrow="Lo nuevo con Javi" href="/lo-nuevo" title="Mas noticias" />
-        {articles.length ? (
+        <SectionHeading eyebrow="Exitos 90,2000" href="/lo-nuevo" title="Exitos 90,2000" />
+        {newArticles.length ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {articles.slice(0, 4).map((article, index) => (
+            {newArticles.slice(0, 4).map((article, index) => (
               <ArticleCard article={article} featured={index === 0} key={article.slug} />
             ))}
           </div>
         ) : (
           <div className="radio-panel rounded-lg p-6 text-sm font-semibold text-slate-600">
-            Aun no hay noticias publicadas.
+            Aun no hay publicaciones en Exitos 90,2000.
           </div>
         )}
       </section>
 
       <section>
-        <SectionHeading eyebrow="Clips y entrevistas" href="/mejores-momentos" title="Mejores momentos" />
+        <SectionHeading eyebrow="Ranking de la semana" href="/mejores-momentos" title="Rankings semanal" />
         {moments.length ? (
           <div className="grid gap-4 md:grid-cols-3">
             {moments.slice(0, 3).map((article) => (
@@ -215,22 +199,7 @@ export default async function Home() {
           </div>
         ) : (
           <div className="radio-panel rounded-lg p-6 text-sm font-semibold text-slate-600">
-            Aun no hay mejores momentos cargados.
-          </div>
-        )}
-      </section>
-
-      <section>
-        <SectionHeading eyebrow="Parrilla" href="/programas" title="Programas" />
-        {programs.length ? (
-          <div className="grid gap-4 md:grid-cols-3">
-            {programs.slice(0, 3).map((program) => (
-              <ProgramCard key={program.name} program={program} />
-            ))}
-          </div>
-        ) : (
-          <div className="radio-panel rounded-lg p-6 text-sm font-semibold text-slate-600">
-            Aun no hay programas cargados.
+            Aun no hay rankings semanales cargados.
           </div>
         )}
       </section>

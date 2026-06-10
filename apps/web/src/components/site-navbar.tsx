@@ -8,11 +8,9 @@ import { Button } from '@/components/ui/button';
 
 const navItems = [
   { href: '/noticias', label: 'Noticias' },
-  { href: '/lo-nuevo', label: 'Lo nuevo' },
-  { href: '/mejores-momentos', label: 'Mejores momentos' },
-  { href: '/programas', label: 'Programas' },
-  { href: '/concursos', label: 'Concursos' },
-  { href: '/frecuencia', label: 'Frecuencia' }
+  { href: '/lo-nuevo', label: 'Exitos 90,2000' },
+  { href: '/mejores-momentos', label: 'Rankings semanal' },
+  { href: '/comunidad', label: 'Comunidad' }
 ];
 
 export function SiteNavbar() {

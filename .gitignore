@@ -7,9 +7,7 @@ dist
 coverage
 *.log
 logs
-uploads
+/uploads
 apps/api/uploads
-
-.vercel
 
 .vercel

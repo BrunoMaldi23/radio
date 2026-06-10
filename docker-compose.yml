@@ -30,13 +30,11 @@ services:
     image: bluenviron/mediamtx:latest
     container_name: radio_labranza_local_mediamtx
     restart: unless-stopped
+    environment:
+      MTX_AUTH_INTERNAL_USERS: '[{"user":"radio_admin","pass":"${MEDIAMTX_API_PASSWORD}","ips":["127.0.0.1","::1","172.16.0.0/12"],"permissions":[{"action":"api"},{"action":"metrics"}]}]'
     ports:
       - "1935:1935"
       - "8888:8888"
-      - "8889:8889"
-      - "8890:8890/udp"
-      - "9997:9997"
-      - "9998:9998"
     volumes:
       - ./infra/mediamtx/mediamtx.yml:/mediamtx.yml:ro
 

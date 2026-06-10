@@ -30,6 +30,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       WEB_ORIGIN: ${WEB_ORIGIN}
       ICECAST_PUBLIC_URL: ${ICECAST_PUBLIC_URL}
       ICECAST_ADMIN_URL: ${ICECAST_ADMIN_URL}
@@ -55,15 +57,14 @@ services:
     image: bluenviron/mediamtx:latest
     container_name: radio_labranza_mediamtx
     restart: unless-stopped
+    environment:
+      MTX_AUTH_INTERNAL_USERS: '[{"user":"radio_admin","pass":"${MEDIAMTX_API_PASSWORD}","ips":["127.0.0.1","::1","172.16.0.0/12"],"permissions":[{"action":"api"},{"action":"metrics"}]}]'
     volumes:
       - ./infra/mediamtx/mediamtx.yml:/mediamtx.yml:ro
     ports:
       - "1935:1935"
       - "8888:8888"
-      - "8889:8889"
-      - "8890:8890/udp"
-      - "9997:9997"
-      - "9998:9998"
+      - "8895:8890/udp"
 
   audio-relay:
     image: jrottenberg/ffmpeg:6.1-alpine
@@ -89,7 +90,7 @@ services:
       - audio/mpeg
       - -f
       - mp3
-      - icecast://source:hackme-source@icecast:8000/radio
+      - icecast://source:${ICECAST_SOURCE_PASSWORD}@icecast:8000/radio
 
   caddy:
     image: caddy:2-alpine

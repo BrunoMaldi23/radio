@@ -38,11 +38,11 @@ function toEvent(booking: Booking): CalendarEvent {
   };
 }
 
-export function BookingCalendar({ bookings }: { bookings: Booking[] }) {
+export function BookingCalendar({ bookings, token }: { bookings: Booking[]; token?: string }) {
   const [events, setEvents] = useState<CalendarEvent[]>(() => bookings.map(toEvent));
   const socketUrl = API_URL === '/api' ? undefined : API_URL;
 
-  const socket = useMemo(() => io(socketUrl, { autoConnect: false }), [socketUrl]);
+  const socket = useMemo(() => io(socketUrl, { autoConnect: false, auth: { token } }), [socketUrl, token]);
 
   useEffect(() => {
     setEvents(bookings.map(toEvent));

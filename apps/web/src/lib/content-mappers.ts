@@ -14,13 +14,25 @@ function safeMediaUrl(value?: string | null) {
   return fallbackImage;
 }
 
+function safeArticleMediaUrl(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  if (value.startsWith('/') || value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+
+  return null;
+}
+
 export function mapArticle(article: Article) {
   return {
     slug: article.slug,
     category: article.category,
     title: article.title,
     excerpt: article.excerpt,
-    imageUrl: safeMediaUrl(article.coverUrl),
+    imageUrl: safeArticleMediaUrl(article.coverUrl),
     date: article.publishedAt
       ? new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'short' }).format(new Date(article.publishedAt))
       : 'Ahora'

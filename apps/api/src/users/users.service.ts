@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { AuditService } from '../audit/audit.service';
@@ -64,7 +64,7 @@ export class UsersService {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException('El correo ya esta registrado.');
       }
-      throw error;
+      throw new InternalServerErrorException('Ocurrio un error inesperado.');
     }
   }
 

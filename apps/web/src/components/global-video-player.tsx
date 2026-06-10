@@ -6,15 +6,12 @@ import { ExternalLink, Maximize2, Minimize2, PictureInPicture2, RadioTower } fro
 import { cn } from '@/lib/utils';
 import { usePlayerStore } from '@/store/player-store';
 
-const configuredHlsUrl = process.env.NEXT_PUBLIC_TV_HLS_URL;
-const hlsUrl =
-  configuredHlsUrl && configuredHlsUrl !== '/hls/tv/index.m3u8'
-    ? configuredHlsUrl
-    : 'https://159.112.140.93.nip.io/hls/tv/index.m3u8';
+const hlsUrl = process.env.NEXT_PUBLIC_TV_HLS_URL || '';
 
 export function GlobalVideoPlayer() {
   const pathname = usePathname();
   const { videoMode } = usePlayerStore();
+  const playerRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -78,8 +75,8 @@ export function GlobalVideoPlayer() {
   }, []);
 
   async function toggleFullscreen() {
-    const video = videoRef.current;
-    if (!video) {
+    const player = playerRef.current;
+    if (!player) {
       return;
     }
 
@@ -88,7 +85,7 @@ export function GlobalVideoPlayer() {
       return;
     }
 
-    await video.requestFullscreen();
+    await player.requestFullscreen();
   }
 
   async function openPictureInPicture() {
@@ -120,11 +117,15 @@ export function GlobalVideoPlayer() {
 
   return (
     <section
+      ref={playerRef}
       className={cn(
-        'overflow-hidden border border-white/20 bg-slate-950 text-white transition-all duration-300',
+        'video-player-shell overflow-hidden border border-white/20 bg-slate-950 text-white transition-all duration-300',
         isRanking
           ? 'fixed bottom-28 right-4 z-50 h-[11.25rem] w-80 rounded-lg shadow-2xl'
-          : 'mx-auto mb-8 flex w-full max-w-5xl flex-col rounded-lg shadow-2xl shadow-slate-950/25'
+          : cn(
+              'flex w-full flex-col rounded-lg shadow-2xl shadow-slate-950/25',
+              isTv ? 'max-w-none' : 'mx-auto mb-8 max-w-5xl'
+            )
       )}
     >
       <div className={cn('relative aspect-video w-full bg-slate-950', !isRanking && 'min-h-[220px] sm:min-h-[360px]')}>

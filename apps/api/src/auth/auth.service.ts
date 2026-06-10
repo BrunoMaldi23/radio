@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, Role, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -32,7 +32,7 @@ export class AuthService {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException('Email already registered.');
       }
-      throw error;
+      throw new InternalServerErrorException('Ocurrio un error inesperado.');
     }
   }
 
@@ -41,7 +41,7 @@ export class AuthService {
     return { hasUsers: count > 0 };
   }
 
-  async bootstrapAdmin(dto: RegisterDto) {
+  async bootstrapAdmin(dto: { name: string; email: string; password: string }) {
     const count = await this.prisma.user.count();
     if (count > 0) {
       throw new ConflictException('El sistema ya tiene usuarios registrados.');

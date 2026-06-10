@@ -2,7 +2,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Facebook, Instagram, Mail, MapPin, Music2, Phone, Youtube } from 'lucide-react';
 
-const footerLinks = ['Noticias', 'Lo nuevo', 'Programas', 'Concursos', 'Frecuencia'];
+const footerLinks = [
+  { href: '/noticias', label: 'Noticias' },
+  { href: '/lo-nuevo', label: 'Exitos 90,2000' },
+  { href: '/mejores-momentos', label: 'Rankings semanal' },
+  { href: '/comunidad', label: 'Comunidad' },
+];
 
 export function SiteFooter() {
   return (
@@ -28,10 +33,10 @@ export function SiteFooter() {
           {footerLinks.map((item) => (
             <Link
               className="text-sm font-bold text-slate-300 hover:text-amber-300"
-              href={`/${item.toLowerCase().replace(' ', '-')}`}
-              key={item}
+              href={item.href}
+              key={item.href}
             >
-              {item}
+              {item.label}
             </Link>
           ))}
         </nav>

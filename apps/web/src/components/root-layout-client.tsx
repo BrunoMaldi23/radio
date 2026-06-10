@@ -6,10 +6,12 @@ import { GlobalAudioPlayer } from '@/components/global-audio-player';
 import { GlobalVideoPlayer } from '@/components/global-video-player';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteNavbar } from '@/components/site-navbar';
+import { TvLiveChat } from '@/components/tv-live-chat';
 
 export function RootLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdmin = pathname.startsWith('/admin');
+  const isTv = pathname === '/tv';
 
   return (
     <>
@@ -19,7 +21,16 @@ export function RootLayoutClient({ children }: { children: React.ReactNode }) {
           ? 'p-0'
           : 'public-shell px-4 pb-28 pt-24 sm:px-6 lg:px-8'
       }`}>
-        {!isAdmin && <GlobalVideoPlayer />}
+        {!isAdmin && (
+          isTv ? (
+            <div className="mx-auto mb-4 grid w-full max-w-7xl gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-stretch">
+              <GlobalVideoPlayer />
+              <TvLiveChat />
+            </div>
+          ) : (
+            <GlobalVideoPlayer />
+          )
+        )}
         {children}
       </main>
       {!isAdmin && <SiteFooter />}

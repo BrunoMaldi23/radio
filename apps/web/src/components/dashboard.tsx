@@ -174,12 +174,21 @@ export function Dashboard() {
   );
 
   useEffect(() => {
-    const savedToken = window.localStorage.getItem('accessToken');
-    if (savedToken) {
-      setToken(savedToken);
-      return;
-    }
-    void api.hasUsers().then((response) => setNeedsBootstrap(!response.hasUsers)).catch(() => setNeedsBootstrap(false));
+    // Try cookie-based session first (httpOnly cookie)
+    api.me()
+      .then((currentUser) => {
+        setToken('cookie-session');
+        setUser(currentUser);
+      })
+      .catch(() => {
+        // Fallback: try localStorage token (legacy)
+        const savedToken = window.localStorage.getItem('accessToken');
+        if (savedToken) {
+          setToken(savedToken);
+          return;
+        }
+        void api.hasUsers().then((response) => setNeedsBootstrap(!response.hasUsers)).catch(() => setNeedsBootstrap(false));
+      });
   }, []);
 
   useEffect(() => {
@@ -192,15 +201,16 @@ export function Dashboard() {
     if (!activeToken) return;
     setIsLoading(true);
     setMessage('');
+    const bearerToken = activeToken === 'cookie-session' ? undefined : activeToken;
     try {
-      const currentUser = await api.me(activeToken);
+      const currentUser = await api.me(bearerToken);
       const [loadedSpaces, loadedResources, loadedBookings] = await Promise.all([
-        api.spaces(activeToken),
-        api.resources(activeToken),
-        api.bookings(activeToken)
+        api.spaces(bearerToken),
+        api.resources(bearerToken),
+        api.bookings(bearerToken)
       ]);
       const [loadedUsers, loadedAudit] = currentUser.role === 'ADMIN'
-        ? await Promise.all([api.users(activeToken), api.audit(activeToken)])
+        ? await Promise.all([api.users(bearerToken), api.audit(bearerToken)])
         : [[], [] as AuditLog[]];
 
       setUser(currentUser);
@@ -218,13 +228,16 @@ export function Dashboard() {
     }
   }
 
+  function bearerToken() {
+    return token === 'cookie-session' ? undefined : (token || undefined);
+  }
+
   async function login(event: FormEvent) {
     event.preventDefault();
     setIsLoading(true);
     setMessage('');
     try {
       const response = await api.login(email, password);
-      window.localStorage.setItem('accessToken', response.accessToken);
       setToken(response.accessToken);
       setUser(response.user);
       setMessage(`Sesion iniciada como ${response.user.name}.`);
@@ -241,7 +254,6 @@ export function Dashboard() {
     setMessage('');
     try {
       const response = await api.bootstrapAdmin({ name: adminName, email, password });
-      window.localStorage.setItem('accessToken', response.accessToken);
       setToken(response.accessToken);
       setUser(response.user);
       setNeedsBootstrap(false);
@@ -253,7 +265,7 @@ export function Dashboard() {
   }
 
   function logout() {
-    window.localStorage.removeItem('accessToken');
+    api.logout().catch(() => {});
     setToken(null);
     setUser(null);
     setUsers([]);
@@ -269,7 +281,7 @@ export function Dashboard() {
 
   async function saveBooking(event: FormEvent) {
     event.preventDefault();
-    if (!token) return;
+    if (!bearerToken()) return;
     if (!selectedSpaceId && selectedResourceIds.length === 0) {
       setMessage('Selecciona una sala o al menos un recurso.');
       return;
@@ -283,7 +295,7 @@ export function Dashboard() {
         endTime: new Date(endTime).toISOString(),
         resourceIds: selectedResourceIds
       };
-      const booking = editingBookingId ? await api.updateBooking(token, editingBookingId, payload) : await api.createBooking(token, payload);
+      const bt = bearerToken(); const booking = editingBookingId ? await api.updateBooking(bt, editingBookingId, payload) : await api.createBooking(bt, payload);
       upsertBooking(booking);
       setSelectedResourceIds([]);
       setEditingBookingId(null);
@@ -313,6 +325,7 @@ export function Dashboard() {
   }
 
   async function changeBooking(action: BookingAction, id: number) {
+    const bt = bearerToken();
     if (!token) return;
     const confirmMessages: Record<BookingAction, string> = {
       activate: 'Confirma que deseas activar esta reserva.',
@@ -325,15 +338,15 @@ export function Dashboard() {
     setIsLoading(true);
     setMessage('');
     try {
-      const booking =
+      const result =
         action === 'activate'
-          ? await api.activateBooking(token, id)
+          ? await api.activateBooking(bt, id)
           : action === 'cancel'
-            ? await api.cancelBooking(token, id)
+            ? await api.cancelBooking(bt, id)
             : action === 'complete'
-              ? await api.completeBooking(token, id)
-              : await api.markNoShow(token, id);
-      upsertBooking(booking);
+              ? await api.completeBooking(bt, id)
+              : await api.markNoShow(bt, id);
+      upsertBooking(result);
       setMessage('Reserva actualizada.');
       await loadData();
     } catch (error) {
@@ -345,10 +358,11 @@ export function Dashboard() {
 
   async function saveSpace(event: FormEvent) {
     event.preventDefault();
-    if (!token || !canManageCatalog) return;
+    const bt2 = bearerToken();
+    if (!bt2 || !canManageCatalog) return;
     setIsLoading(true);
     try {
-      const saved = editingSpaceId ? await api.updateSpace(token, editingSpaceId, spaceForm) : await api.createSpace(token, spaceForm);
+      const saved = editingSpaceId ? await api.updateSpace(bt2, editingSpaceId, spaceForm) : await api.createSpace(bt2, spaceForm);
       setSpaces((current) => [...current.filter((space) => space.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name)));
       setSpaceForm(emptySpace);
       setEditingSpaceId(null);
@@ -363,10 +377,11 @@ export function Dashboard() {
 
   async function saveResource(event: FormEvent) {
     event.preventDefault();
-    if (!token || !canManageCatalog) return;
+    const bt3 = bearerToken();
+    if (!bt3 || !canManageCatalog) return;
     setIsLoading(true);
     try {
-      const saved = editingResourceId ? await api.updateResource(token, editingResourceId, resourceForm) : await api.createResource(token, resourceForm);
+      const saved = editingResourceId ? await api.updateResource(bt3, editingResourceId, resourceForm) : await api.createResource(bt3, resourceForm);
       setResources((current) => [...current.filter((resource) => resource.id !== saved.id), saved].sort((a, b) => a.title.localeCompare(b.title)));
       setResourceForm(emptyResource);
       setEditingResourceId(null);
@@ -381,7 +396,8 @@ export function Dashboard() {
 
   async function saveUser(event: FormEvent) {
     event.preventDefault();
-    if (!token || !isAdmin) return;
+    const bt4 = bearerToken();
+    if (!bt4 || !isAdmin) return;
     setIsLoading(true);
     try {
       const payload: UserPayload = {
@@ -393,8 +409,8 @@ export function Dashboard() {
         penaltyEndDate: userForm.penaltyEndDate || null
       };
       const saved = editingUserId
-        ? await api.updateUser(token, editingUserId, userForm.password ? { ...payload, password: userForm.password } : payload)
-        : await api.createUser(token, { ...payload, password: userForm.password });
+        ? await api.updateUser(bt4, editingUserId, userForm.password ? { ...payload, password: userForm.password } : payload)
+        : await api.createUser(bt4, { ...payload, password: userForm.password });
       setUsers((current) => [...current.filter((item) => item.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name)));
       setUserForm(emptyUser);
       setEditingUserId(null);
@@ -408,11 +424,12 @@ export function Dashboard() {
   }
 
   async function clearPenalty(id: number) {
-    if (!token || !isAdmin) return;
+    const bt5 = bearerToken();
+    if (!bt5 || !isAdmin) return;
     if (!window.confirm('Confirma que deseas quitar la penalizacion de este usuario.')) return;
     setIsLoading(true);
     try {
-      const saved = await api.clearPenalty(token, id);
+      const saved = await api.clearPenalty(bt5, id);
       setUsers((current) => current.map((item) => (item.id === saved.id ? saved : item)));
       setMessage('Penalizacion retirada.');
       await loadData();
@@ -423,7 +440,7 @@ export function Dashboard() {
     }
   }
 
-  if (!token || !user) {
+  if (!user) {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-10">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(14,165,233,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(14,165,233,0.08)_1px,transparent_1px)] bg-[size:34px_34px]" />
@@ -563,6 +580,7 @@ export function Dashboard() {
             editingBookingId={editingBookingId}
             canManage={canManageCatalog}
             isLoading={isLoading}
+            token={bearerToken() ?? null}
             onSearch={setBookingSearch}
             onStatus={setBookingStatus}
             onSpaceFilter={setBookingSpaceFilter}
@@ -764,6 +782,7 @@ function ReservationsPanel(props: {
   editingBookingId: number | null;
   canManage: boolean;
   isLoading: boolean;
+  token?: string | null;
   onSearch: (value: string) => void;
   onStatus: (value: 'ALL' | BookingStatus) => void;
   onSpaceFilter: (value: string) => void;
@@ -805,7 +824,7 @@ function ReservationsPanel(props: {
         <section className="surface rounded-3xl p-5 md:p-6">
           <BookingFilters {...props} />
           <div className="mt-5 overflow-hidden rounded-2xl border border-sky-100 bg-white/80 p-3 shadow-inner shadow-sky-100/60">
-            <BookingCalendar bookings={props.bookings} />
+            <BookingCalendar bookings={props.bookings} token={props.token ?? undefined} />
           </div>
         </section>
         <BookingsTable bookings={props.bookings} canManage={props.canManage} isLoading={props.isLoading} onAction={props.onAction} onEdit={props.onEditBooking} />

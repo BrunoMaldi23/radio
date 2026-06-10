@@ -25,5 +25,8 @@
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@nestjs/throttler": "^6.5.0"
   }
 }

@@ -1,9 +1,14 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload } from './jwt-payload';
+
+function extractJwtFromCookie(req: Request): string | null {
+  return req?.cookies?.radio_token ?? null;
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -11,10 +16,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     config: ConfigService,
     private readonly prisma: PrismaService
   ) {
+    const secret = config.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new InternalServerErrorException('JWT_SECRET no configurado');
+    }
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        extractJwtFromCookie
+      ]),
       ignoreExpiration: false,
-      secretOrKey: config.get<string>('JWT_SECRET') ?? 'dev-secret'
+      secretOrKey: secret
     });
   }
 
@@ -33,7 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
 
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('User no longer exists.');
+      throw new UnauthorizedException('Invalid credentials.');
     }
 
     return user;

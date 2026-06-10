@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
-import { fallbackImage } from '@/lib/content-mappers';
+import { EditorialCover } from '@/components/editorial-cover';
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -11,14 +11,14 @@ type PageProps = {
 
 function safeImage(value?: string | null) {
   if (!value) {
-    return fallbackImage;
+    return null;
   }
 
   if (value.startsWith('/') || value.startsWith('http://') || value.startsWith('https://')) {
     return value;
   }
 
-  return fallbackImage;
+  return null;
 }
 
 export default async function ArticleDetailPage({ params }: PageProps) {
@@ -32,6 +32,7 @@ export default async function ArticleDetailPage({ params }: PageProps) {
   const date = article.publishedAt
     ? new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(article.publishedAt))
     : 'Publicado ahora';
+  const coverUrl = safeImage(article.coverUrl);
 
   return (
     <article className="mx-auto max-w-4xl">
@@ -44,7 +45,11 @@ export default async function ArticleDetailPage({ params }: PageProps) {
 
       <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
         <div className="aspect-[16/8] bg-zinc-950">
-          <img alt="" className="h-full w-full object-cover" src={safeImage(article.coverUrl)} />
+          {coverUrl ? (
+            <img alt="" className="h-full w-full object-cover" src={coverUrl} />
+          ) : (
+            <EditorialCover category={article.category} title={article.title} featured />
+          )}
         </div>
         <div className="grid gap-5 p-5 sm:p-8">
           <div className="flex flex-wrap items-center gap-3 text-sm font-bold text-zinc-500">
@@ -56,9 +61,10 @@ export default async function ArticleDetailPage({ params }: PageProps) {
           </div>
           <h1 className="text-3xl font-black tracking-normal text-zinc-950 sm:text-5xl">{article.title}</h1>
           <p className="text-lg leading-8 text-zinc-600">{article.excerpt}</p>
-          <div className="whitespace-pre-line border-t border-zinc-200 pt-6 text-base leading-8 text-zinc-800">
-            {article.body}
-          </div>
+          <div
+            className="prose prose-slate max-w-none border-t border-zinc-200 pt-6 text-zinc-800 prose-p:leading-8 prose-a:text-amber-700 prose-img:rounded-lg"
+            dangerouslySetInnerHTML={{ __html: article.body || '<p>Sin contenido.</p>' }}
+          />
         </div>
       </div>
     </article>

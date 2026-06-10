@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { CurrentUser, AuthenticatedUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -20,6 +20,7 @@ export class BookingsController {
   }
 
   @Get()
+  @Roles(Role.ADMIN, Role.OPERATOR)
   findAll() {
     return this.bookingsService.findAll();
   }
@@ -55,6 +56,6 @@ export class BookingsController {
 
   @Patch(':id/cancel')
   cancel(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
-    return this.bookingsService.updateStatus(id, 'CANCELLED', user.id);
+    return this.bookingsService.cancel(id, user);
   }
 }

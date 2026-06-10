@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { fallbackImage } from '@/lib/content-mappers';
+import { EditorialCover } from '@/components/editorial-cover';
 
 type Article = {
   slug: string;
   category: string;
   title: string;
   excerpt: string;
-  imageUrl: string;
+  imageUrl: string | null;
   date: string;
 };
 
@@ -24,15 +25,23 @@ export function ArticleCard({ article, featured = false }: ArticleCardProps) {
       href={`/noticias/${article.slug}`}
     >
       <div className={featured ? 'relative aspect-[16/10] overflow-hidden bg-slate-950' : 'relative aspect-[16/11] overflow-hidden bg-slate-950'}>
-        <img
-          alt=""
-          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-          onError={(event) => {
-            event.currentTarget.src = fallbackImage;
-          }}
-          src={article.imageUrl}
-        />
-        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-950/45 to-transparent" />
+        {article.imageUrl ? (
+          <>
+            <img
+              alt=""
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              onError={(event) => {
+                event.currentTarget.src = fallbackImage;
+              }}
+              src={article.imageUrl}
+            />
+            <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-950/45 to-transparent" />
+          </>
+        ) : (
+          <div className="h-full w-full transition duration-300 group-hover:scale-[1.02]">
+            <EditorialCover category={article.category} title={article.title} featured={featured} />
+          </div>
+        )}
       </div>
       <div className="grid gap-2 p-5">
         <div className="flex items-center justify-between gap-3">

@@ -6,17 +6,17 @@ import { mapArticle } from '@/lib/content-mappers';
 import { Clapperboard } from 'lucide-react';
 
 export default async function BestMomentsPage() {
-  const articles = await api.articles('Mejores momentos').then((items) => items.map(mapArticle)).catch(() => []);
+  const articles = await api.articles('Rankings semanal').then((items) => items.map(mapArticle)).catch(() => []);
 
   return (
     <div className="mx-auto grid max-w-7xl gap-8">
       <PublicPageHero
-        eyebrow="Clips de cabina"
+        eyebrow="Ranking de la semana"
         icon={Clapperboard}
-        title="Mejores momentos"
-        description="Entrevistas, visitas, risas y escenas para volver a vivir la energia de la radio."
+        title="Rankings semanal"
+        description="La seleccion semanal con los temas, posiciones y favoritos que se mueven en la radio."
       />
-      <SectionHeading eyebrow="Clips de cabina" title="Mejores momentos" />
+      <SectionHeading eyebrow="Ranking de la semana" title="Rankings semanal" />
       {articles.length ? (
         <div className="grid gap-4 md:grid-cols-3">
           {articles.map((article) => (
@@ -25,7 +25,7 @@ export default async function BestMomentsPage() {
         </div>
       ) : (
         <div className="radio-panel rounded-lg p-6 text-sm font-semibold text-slate-600">
-          Aun no hay mejores momentos cargados.
+          Aun no hay rankings semanales cargados.
         </div>
       )}
     </div>

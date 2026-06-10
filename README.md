@@ -31,8 +31,8 @@ Base full-stack para una plataforma web multimedia de radio y TV digital en vivo
 
 Admin local:
 
-- Email: `admin@radiolabranza.cl`
-- Password: `Password123!`
+- Email: configurar en `.env` (variable `ADMIN_EMAIL`)
+- Password: configurar en `.env` (variable `ADMIN_PASSWORD`)
 
 ## Arranque
 
@@ -76,14 +76,14 @@ Icecast local queda en:
 - Player: `http://localhost:8000/radio`
 - Admin: `http://localhost:8000/admin/`
 - Usuario source: `source`
-- Password source dev: `hackme-source`
+- Password source dev: configurar en `.env` (variable `ICECAST_SOURCE_PASSWORD`)
 - Usuario admin: `admin`
-- Password admin dev: `hackme-admin`
+- Password admin dev: configurar en `.env` (variable `ICECAST_ADMIN_PASSWORD`)
 
 Ejemplo FFmpeg:
 
 ```powershell
-ffmpeg -re -i input.mp3 -content_type audio/mpeg -f mp3 icecast://source:hackme-source@localhost:8000/radio
+ffmpeg -re -i input.mp3 -content_type audio/mpeg -f mp3 icecast://source:${ICECAST_SOURCE_PASSWORD}@localhost:8000/radio
 ```
 
 ## Backend

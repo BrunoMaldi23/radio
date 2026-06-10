@@ -6,11 +6,7 @@ import { Pause, Play, Share2, Tv, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePlayerStore } from '@/store/player-store';
 
-const configuredIcecastUrl = process.env.NEXT_PUBLIC_ICECAST_URL;
-const icecastUrl =
-  configuredIcecastUrl && configuredIcecastUrl !== '/radio'
-    ? configuredIcecastUrl
-    : 'https://159.112.140.93.nip.io/radio';
+const icecastUrl = process.env.NEXT_PUBLIC_ICECAST_URL || '';
 
 export function GlobalAudioPlayer() {
   const pathname = usePathname();

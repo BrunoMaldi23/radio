@@ -70,6 +70,15 @@ export type RankingTrack = {
   isActive: boolean;
 };
 
+export type ChatMessage = {
+  id: number;
+  room: string;
+  author: string;
+  message: string;
+  isHidden: boolean;
+  createdAt: string;
+};
+
 export type Article = {
   id: number;
   slug: string;
@@ -79,6 +88,8 @@ export type Article = {
   category: string;
   coverUrl: string | null;
   coverFocal?: string | null;
+  likes?: number;
+  attendees?: number;
   status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
   publishedAt: string | null;
   createdAt: string;
@@ -134,11 +145,20 @@ export type StreamingRuntimeStatus = {
 };
 
 const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL;
-export const API_URL = configuredApiUrl || 'https://159.112.140.93.nip.io';
+export const API_URL = configuredApiUrl || '/api';
+
+function getRequestBaseUrl() {
+  if (typeof window !== 'undefined') {
+    return API_URL;
+  }
+
+  return configuredApiUrl || process.env.API_PROXY_URL || API_URL;
+}
 
 async function request<T>(path: string, options: RequestInit = {}, token?: string) {
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${getRequestBaseUrl()}${path}`, {
     cache: 'no-store',
+    credentials: 'same-origin',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -155,13 +175,14 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   return response.json() as Promise<T>;
 }
 
-async function uploadRequest<T>(path: string, formData: FormData, token: string) {
+async function uploadRequest<T>(path: string, formData: FormData, token: string | undefined) {
   const response = await fetch(`${API_URL}${path}`, {
     method: 'POST',
     cache: 'no-store',
+    credentials: 'same-origin',
     body: formData,
     headers: {
-      Authorization: `Bearer ${token}`
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
     }
   });
 
@@ -189,26 +210,29 @@ export const api = {
       body: JSON.stringify({ email, password })
     });
   },
-  me(token: string) {
+  me(token?: string) {
     return request<User>('/auth/me', {}, token);
   },
-  spaces(token: string) {
+  logout() {
+    return request<{ ok: boolean }>('/auth/logout', { method: 'POST' });
+  },
+  spaces(token: string | undefined) {
     return request<Space[]>('/spaces', {}, token);
   },
-  resources(token: string) {
+  resources(token: string | undefined) {
     return request<Resource[]>('/resources', {}, token);
   },
-  bookings(token: string) {
+  bookings(token: string | undefined) {
     return request<Booking[]>('/bookings', {}, token);
   },
-  users(token: string) {
+  users(token: string | undefined) {
     return request<User[]>('/users', {}, token);
   },
-  audit(token: string) {
+  audit(token: string | undefined) {
     return request<AuditLog[]>('/audit', {}, token);
   },
   createBooking(
-    token: string,
+    token: string | undefined,
     payload: { spaceId?: number; startTime: string; endTime: string; resourceIds: number[] }
   ) {
     return request<Booking>(
@@ -221,7 +245,7 @@ export const api = {
     );
   },
   updateBooking(
-    token: string,
+    token: string | undefined,
     id: number,
     payload: { spaceId?: number; startTime: string; endTime: string; resourceIds: number[] }
   ) {
@@ -234,46 +258,58 @@ export const api = {
       token
     );
   },
-  activateBooking(token: string, id: number) {
+  activateBooking(token: string | undefined, id: number) {
     return request<Booking>(`/bookings/${id}/activate`, { method: 'PATCH' }, token);
   },
-  cancelBooking(token: string, id: number) {
+  cancelBooking(token: string | undefined, id: number) {
     return request<Booking>(`/bookings/${id}/cancel`, { method: 'PATCH' }, token);
   },
-  completeBooking(token: string, id: number) {
+  completeBooking(token: string | undefined, id: number) {
     return request<Booking>(`/bookings/${id}/complete`, { method: 'PATCH', body: JSON.stringify({}) }, token);
   },
-  markNoShow(token: string, id: number) {
+  markNoShow(token: string | undefined, id: number) {
     return request<Booking>(`/bookings/${id}/no-show`, { method: 'PATCH' }, token);
   },
-  createSpace(token: string, payload: Omit<Space, 'id'>) {
+  createSpace(token: string | undefined, payload: Omit<Space, 'id'>) {
     return request<Space>('/spaces', { method: 'POST', body: JSON.stringify(payload) }, token);
   },
-  updateSpace(token: string, id: number, payload: Partial<Omit<Space, 'id'>>) {
+  updateSpace(token: string | undefined, id: number, payload: Partial<Omit<Space, 'id'>>) {
     return request<Space>(`/spaces/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token);
   },
-  createResource(token: string, payload: Omit<Resource, 'id'>) {
+  createResource(token: string | undefined, payload: Omit<Resource, 'id'>) {
     return request<Resource>('/resources', { method: 'POST', body: JSON.stringify(payload) }, token);
   },
-  updateResource(token: string, id: number, payload: Partial<Omit<Resource, 'id'>>) {
+  updateResource(token: string | undefined, id: number, payload: Partial<Omit<Resource, 'id'>>) {
     return request<Resource>(`/resources/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token);
   },
-  createUser(token: string, payload: UserPayload & { password: string }) {
+  createUser(token: string | undefined, payload: UserPayload & { password: string }) {
     return request<User>('/users', { method: 'POST', body: JSON.stringify(payload) }, token);
   },
-  updateUser(token: string, id: number, payload: Partial<UserPayload>) {
+  updateUser(token: string | undefined, id: number, payload: Partial<UserPayload>) {
     return request<User>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token);
   },
-  clearPenalty(token: string, id: number) {
+  clearPenalty(token: string | undefined, id: number) {
     return request<User>(`/users/${id}/clear-penalty`, { method: 'PATCH' }, token);
   },
   ranking() {
     return request<RankingTrack[]>('/ranking');
   },
+  adminRanking(token: string | undefined) {
+    return request<RankingTrack[]>('/ranking/admin', {}, token);
+  },
   vote(trackId: number) {
     return request<RankingTrack>(`/ranking/${trackId}/vote`, {
       method: 'POST',
       body: JSON.stringify({})
+    });
+  },
+  chatMessages(room = 'tv') {
+    return request<ChatMessage[]>(`/chat/messages?room=${encodeURIComponent(room)}`);
+  },
+  sendChatMessage(payload: { author: string; message: string; room?: string }) {
+    return request<ChatMessage>('/chat/messages', {
+      method: 'POST',
+      body: JSON.stringify(payload)
     });
   },
   ingestProfiles() {
@@ -285,23 +321,35 @@ export const api = {
   articles(category?: string) {
     return request<Article[]>(`/articles${category ? `?category=${encodeURIComponent(category)}` : ''}`);
   },
-  adminArticles(token: string) {
+  adminArticles(token: string | undefined) {
     return request<Article[]>('/articles/admin', {}, token);
   },
   articleBySlug(slug: string) {
     return request<Article>(`/articles/${encodeURIComponent(slug)}`);
   },
+  attendArticle(id: number) {
+    return request<Article>(`/articles/${id}/attend`, {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+  },
+  likeArticle(id: number) {
+    return request<Article>(`/articles/${id}/like`, {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+  },
   programsPublic() {
     return request<Program[]>('/programs');
   },
-  adminPrograms(token: string) {
+  adminPrograms(token: string | undefined) {
     return request<Program[]>('/programs/admin', {}, token);
   },
   health() {
     return request<{ ok: boolean; service: string; timestamp: string }>('/health');
   },
   createArticle(
-    token: string,
+    token: string | undefined,
     payload: {
       slug: string;
       title: string;
@@ -314,13 +362,26 @@ export const api = {
   ) {
     return request<Article>('/articles', { method: 'POST', body: JSON.stringify(payload) }, token);
   },
-  updateArticle(token: string, id: number, payload: Partial<Article>) {
+  createCommunitySubmission(payload: {
+    slug: string;
+    title: string;
+    excerpt: string;
+    body: string;
+    category: 'Eventos' | 'Galeria';
+    coverUrl?: string;
+  }) {
+    return request<Article>('/articles/community-submissions', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+  updateArticle(token: string | undefined, id: number, payload: Partial<Article>) {
     return request<Article>(`/articles/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token);
   },
-  deleteArticle(token: string, id: number) {
+  deleteArticle(token: string | undefined, id: number) {
     return request<Article>(`/articles/${id}`, { method: 'DELETE' }, token);
   },
-  async uploadImage(token: string, file: File) {
+  async uploadImage(token: string | undefined, file: File) {
     const formData = new FormData();
     formData.append('file', file);
     const uploaded = await uploadRequest<{ path: string; filename: string; mimetype: string; size: number }>(
@@ -333,8 +394,65 @@ export const api = {
       url: `${API_URL}${uploaded.path}`
     };
   },
+  async uploadPublicImage(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${API_URL}/uploads/public/images`, {
+      method: 'POST',
+      cache: 'no-store',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.message ?? 'No se pudo subir el archivo.');
+    }
+
+    const uploaded = await response.json() as { path: string; filename: string; mimetype: string; size: number };
+    return {
+      ...uploaded,
+      url: `${API_URL}${uploaded.path}`
+    };
+  },
+  async uploadPublicImageFromUrl(url: string) {
+    const uploaded = await request<{ path: string; filename: string; mimetype: string; size: number }>(
+      '/uploads/public/images/from-url',
+      {
+        method: 'POST',
+        body: JSON.stringify({ url })
+      }
+    );
+    return {
+      ...uploaded,
+      url: `${API_URL}${uploaded.path}`
+    };
+  },
+  async uploadImageFromUrl(token: string | undefined, url: string) {
+    try {
+      const uploaded = await request<{ path: string; filename: string; mimetype: string; size: number }>(
+        '/uploads/images/from-url',
+        {
+          method: 'POST',
+          body: JSON.stringify({ url })
+        },
+        token
+      );
+      return {
+        ...uploaded,
+        url: `${API_URL}${uploaded.path}`
+      };
+    } catch (error) {
+      const response = await fetch(url);
+      if (!response.ok) throw error;
+      const blob = await response.blob();
+      if (!blob.type.startsWith('image/')) throw error;
+      const extension = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+      const file = new File([blob], `imported-image.${extension}`, { type: blob.type });
+      return api.uploadImage(token, file);
+    }
+  },
   createProgram(
-    token: string,
+    token: string | undefined,
     payload: {
       slug: string;
       name: string;
@@ -347,37 +465,37 @@ export const api = {
   ) {
     return request<Program>('/programs', { method: 'POST', body: JSON.stringify(payload) }, token);
   },
-  updateProgram(token: string, id: number, payload: Partial<Program>) {
+  updateProgram(token: string | undefined, id: number, payload: Partial<Program>) {
     return request<Program>(`/programs/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token);
   },
-  deleteProgram(token: string, id: number) {
+  deleteProgram(token: string | undefined, id: number) {
     return request<Program>(`/programs/${id}`, { method: 'DELETE' }, token);
   },
-  createRankingTrack(token: string, payload: { title: string; artist: string; artworkUrl?: string; isActive?: boolean }) {
+  createRankingTrack(token: string | undefined, payload: { title: string; artist: string; artworkUrl?: string; isActive?: boolean }) {
     return request<RankingTrack>('/ranking', { method: 'POST', body: JSON.stringify(payload) }, token);
   },
-  updateRankingTrack(token: string, id: number, payload: Partial<RankingTrack>) {
+  updateRankingTrack(token: string | undefined, id: number, payload: Partial<RankingTrack>) {
     return request<RankingTrack>(`/ranking/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token);
   },
-  deleteRankingTrack(token: string, id: number) {
+  deleteRankingTrack(token: string | undefined, id: number) {
     return request<RankingTrack>(`/ranking/${id}`, { method: 'DELETE' }, token);
   },
   frequencies() {
     return request<Frequency[]>('/frequencies');
   },
-  adminFrequencies(token: string) {
+  adminFrequencies(token: string | undefined) {
     return request<Frequency[]>('/frequencies/admin', {}, token);
   },
   createFrequency(
-    token: string,
+    token: string | undefined,
     payload: { city: string; dial: string; description?: string; isActive?: boolean; sortOrder?: number }
   ) {
     return request<Frequency>('/frequencies', { method: 'POST', body: JSON.stringify(payload) }, token);
   },
-  updateFrequency(token: string, id: number, payload: Partial<Frequency>) {
+  updateFrequency(token: string | undefined, id: number, payload: Partial<Frequency>) {
     return request<Frequency>(`/frequencies/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, token);
   },
-  deleteFrequency(token: string, id: number) {
+  deleteFrequency(token: string | undefined, id: number) {
     return request<Frequency>(`/frequencies/${id}`, { method: 'DELETE' }, token);
   }
 };

@@ -19,7 +19,7 @@ export class CreateArticleDto {
 
   @IsString()
   @IsOptional()
-  coverUrl?: string;
+  coverUrl?: string | null;
 
   @IsEnum(ContentStatus)
   @IsOptional()

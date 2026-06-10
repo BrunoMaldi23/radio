@@ -342,6 +342,20 @@ export class BookingsService {
     return booking;
   }
 
+  async cancel(bookingId: number, currentUser: { id: number; role: string }) {
+    const booking = await this.prisma.booking.findUnique({ where: { id: bookingId } });
+    if (!booking) {
+      throw new NotFoundException('Booking not found.');
+    }
+
+    const isAdminOrOperator = currentUser.role === 'ADMIN' || currentUser.role === 'OPERATOR';
+    if (!isAdminOrOperator && booking.userId !== currentUser.id) {
+      throw new ForbiddenException('No puedes cancelar una reserva que no te pertenece.');
+    }
+
+    return this.updateStatus(bookingId, BookingStatus.CANCELLED, currentUser.id);
+  }
+
   async complete(bookingId: number, actorId?: number, returnedAt = new Date(), penaltyDays = 7) {
     const booking = await this.prisma.booking.findUnique({ where: { id: bookingId } });
     if (!booking) {

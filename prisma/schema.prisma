@@ -199,6 +199,8 @@ model Article {
   body        String
   category    String
   coverUrl    String?
+  likes       Int           @default(0)
+  attendees   Int           @default(0)
   status      ContentStatus @default(DRAFT)
   publishedAt DateTime?
   createdAt   DateTime      @default(now())
@@ -246,7 +248,21 @@ model RankingTrack {
 model Vote {
   id        Int          @id @default(autoincrement())
   trackId   Int
-  ipHash    String?
+  ipHash    String
   createdAt DateTime     @default(now())
   track     RankingTrack @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([trackId, ipHash])
+}
+
+model ChatMessage {
+  id        Int      @id @default(autoincrement())
+  room      String   @default("tv")
+  author    String
+  message   String
+  ipHash    String?
+  isHidden  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([room, createdAt])
 }

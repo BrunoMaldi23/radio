@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -12,7 +12,7 @@ import { JwtStrategy } from './jwt.strategy';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') ?? 'dev-secret',
+        secret: config.get<string>('JWT_SECRET'),
         signOptions: {
           expiresIn: config.get<string>('JWT_EXPIRES_IN') ?? '1h'
         }
@@ -23,4 +23,12 @@ import { JwtStrategy } from './jwt.strategy';
   providers: [AuthService, JwtStrategy],
   exports: [AuthService]
 })
-export class AuthModule {}
+export class AuthModule implements OnApplicationBootstrap {
+  constructor(private readonly config: ConfigService) {}
+
+  onApplicationBootstrap() {
+    if (!this.config.get<string>('JWT_SECRET')) {
+      throw new Error('JWT_SECRET no está definido. Configúralo en el archivo .env');
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateRankingTrackDto } from './dto/create-ranking-track.dto';
@@ -15,6 +15,12 @@ export class RankingService {
     return this.prisma.rankingTrack.findMany({
       where: { isActive: true },
       orderBy: [{ votes: 'desc' }, { title: 'asc' }]
+    });
+  }
+
+  findAllForAdmin() {
+    return this.prisma.rankingTrack.findMany({
+      orderBy: [{ isActive: 'desc' }, { votes: 'desc' }, { updatedAt: 'desc' }]
     });
   }
 
@@ -41,7 +47,15 @@ export class RankingService {
     return this.prisma.rankingTrack.delete({ where: { id } });
   }
 
-  async vote(trackId: number, ipHash?: string) {
+  async vote(trackId: number, ipHash: string) {
+    const existing = await this.prisma.vote.findFirst({
+      where: { trackId, ipHash }
+    });
+
+    if (existing) {
+      throw new ConflictException('Ya votaste por esta cancion.');
+    }
+
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.vote.create({ data: { trackId, ipHash } });
       return tx.rankingTrack.update({

@@ -43,13 +43,13 @@ export function StreamRuntimePanel() {
   }, []);
 
   return (
-    <section className="overflow-hidden rounded-xl border border-zinc-200/70 bg-white shadow-warm">
-      <div className="flex flex-col justify-between gap-3 border-b border-zinc-100 bg-gradient-to-r from-brand-50/70 to-white p-5 sm:flex-row sm:items-center">
-        <h2 className="flex items-center gap-2 text-xl font-black text-zinc-950">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand-500 text-brand-950">
+    <section className="admin-shell-frame overflow-hidden rounded-lg">
+      <div className="flex flex-col justify-between gap-3 border-b border-slate-900/10 bg-white/70 p-5 sm:flex-row sm:items-center">
+        <h2 className="flex items-center gap-2 text-xl font-black text-[#0f172a]">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#020617] text-amber-200">
             <Activity className="h-5 w-5" />
           </span>
-          Estado de señales
+          Estado de senales
         </h2>
         <Button disabled={loading} onClick={refresh} type="button" variant="outline">
           <RefreshCw className="h-4 w-4" />
@@ -64,13 +64,13 @@ export function StreamRuntimePanel() {
           <StatusPill label="HLS /tv" ok={Boolean(status?.hls.ok)} />
         </div>
 
-        <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-4">
-          <p className="text-sm font-black text-zinc-950">Path TV</p>
-          <div className="mt-2 grid gap-2 text-sm text-zinc-600">
-            <p>Estado: <strong className="text-zinc-950">{tvPath?.ready ? 'Transmitiendo' : 'Esperando OBS'}</strong></p>
-            <p>Fuente: <strong className="text-zinc-950">{tvPath?.source?.type ?? 'Sin fuente'}</strong></p>
-            <p>Tracks: <strong className="text-zinc-950">{tvPath?.tracks?.join(', ') || 'Sin tracks'}</strong></p>
-            <p>Lectores: <strong className="text-zinc-950">{tvPath?.readers?.length ?? 0}</strong></p>
+        <div className="rounded-lg border border-slate-900/10 bg-slate-50/85 p-4">
+          <p className="text-sm font-black text-[#0f172a]">Path TV</p>
+          <div className="mt-2 grid gap-2 text-sm text-slate-600">
+            <p>Estado: <strong className="text-[#0f172a]">{tvPath?.ready ? 'Transmitiendo' : 'Esperando OBS'}</strong></p>
+            <p>Fuente: <strong className="text-[#0f172a]">{tvPath?.source?.type ?? 'Sin fuente'}</strong></p>
+            <p>Tracks: <strong className="text-[#0f172a]">{tvPath?.tracks?.join(', ') || 'Sin tracks'}</strong></p>
+            <p>Lectores: <strong className="text-[#0f172a]">{tvPath?.readers?.length ?? 0}</strong></p>
           </div>
         </div>
       </div>
