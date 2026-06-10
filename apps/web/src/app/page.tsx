@@ -186,8 +186,8 @@ export default function Home() {
       <section>
         <SectionHeading eyebrow="Exitos 90,2000" href="/lo-nuevo" title="Exitos 90,2000" />
         {newArticles.length ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {newArticles.slice(0, 4).map((article, index) => (
+          <div className="grid gap-4 md:grid-cols-3">
+            {newArticles.slice(0, 3).map((article, index) => (
               <ArticleCard article={article} featured={index === 0} key={article.slug} />
             ))}
           </div>
