@@ -1,7 +1,10 @@
+'use client';
+
 import Link from 'next/link';
 import { ArrowUpRight, CalendarDays, Camera, Images, Radio } from 'lucide-react';
 import { GalleryWithLightbox } from '@/components/gallery-lightbox';
 import { api, type Article } from '@/lib/api';
+import { useEffect, useState } from 'react';
 
 function imageOf(item: Article | undefined | null) {
   return item?.coverUrl ?? null;
@@ -20,13 +23,20 @@ function sortByFreshness(items: Article[]) {
   });
 }
 
-export default async function ComunidadPage() {
-  const [eventsRaw, galleryRaw] = await Promise.all([
-    api.articles('Eventos').catch(() => []),
-    api.articles('Galeria').catch(() => []),
-  ]);
-  const events = sortByFreshness(eventsRaw);
-  const gallery = sortByFreshness(galleryRaw);
+export default function ComunidadPage() {
+  const [events, setEvents] = useState<Article[]>([]);
+  const [gallery, setGallery] = useState<Article[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      api.articles('Eventos').catch(() => []),
+      api.articles('Galeria').catch(() => []),
+    ]).then(([eventsRaw, galleryRaw]) => {
+      setEvents(sortByFreshness(eventsRaw));
+      setGallery(sortByFreshness(galleryRaw));
+    });
+  }, []);
+
   const heroEvent = events[0];
   const nextEvents = events.slice(0, 5);
   const featuredGallery = gallery[0];
@@ -80,8 +90,6 @@ export default async function ComunidadPage() {
           </div>
         </article>
       </section>
-
-
 
       <section className="grid gap-5">
         <div className="community-section-heading">
