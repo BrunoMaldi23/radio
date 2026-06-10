@@ -7,9 +7,9 @@ import { UpdateArticleDto } from './dto/update-article.dto';
 
 function sanitizeHtml(html: string): string {
   const { JSDOM } = require('jsdom');
-  const { default: DOMPurify } = require('dompurify');
+  const createDOMPurify = require('dompurify');
   const window = new JSDOM('').window;
-  const purify = DOMPurify(window as unknown as Window);
+  const purify = createDOMPurify(window as unknown as Window);
   return purify.sanitize(html, {
     ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'em', 'strong', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code', 'hr', 'div', 'span', 'img', 'figure', 'figcaption', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'sub', 'sup'],
     ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel', 'width', 'height', 'align'],
