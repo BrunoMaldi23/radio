@@ -1,28 +1,66 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { ArrowLeft, CalendarDays, MapPin, UsersRound } from 'lucide-react';
 import { AttendButton } from '@/components/community-actions';
-import { api } from '@/lib/api';
-
-type EventDetailPageProps = {
-  params: Promise<{ slug: string }>;
-};
-
-function imageOf(value: string | null | undefined) {
-  return value ?? null;
-}
+import { api, type Article } from '@/lib/api';
 
 function formatDate(value: string | null) {
   if (!value) return 'Publicado por la radio';
   return new Date(value).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
-export default async function EventDetailPage({ params }: EventDetailPageProps) {
-  const { slug } = await params;
-  const event = await api.articleBySlug(slug).catch(() => null);
+export default function EventDetailPage() {
+  const { slug } = useParams<{ slug: string }>();
+  const [event, setEvent] = useState<Article | null | 'loading'>(null);
+  const [notFound, setNotFound] = useState(false);
 
-  if (!event || event.category !== 'Eventos' || event.status !== 'PUBLISHED') {
-    notFound();
+  useEffect(() => {
+    if (!slug) return;
+    api.articleBySlug(slug)
+      .then((article) => {
+        if (!article || article.category !== 'Eventos' || article.status !== 'PUBLISHED') {
+          setNotFound(true);
+        } else {
+          setEvent(article);
+        }
+      })
+      .catch(() => setNotFound(true));
+  }, [slug]);
+
+  if (notFound) {
+    return (
+      <main className="mx-auto grid max-w-6xl gap-6 p-6">
+        <Link className="community-back-link community-back-link-compact" href="/comunidad">
+          <ArrowLeft className="h-4 w-4" />
+          Volver a comunidad
+        </Link>
+        <div className="grid min-h-72 place-items-center">
+          <div className="text-center">
+            <h1 className="text-4xl font-black text-slate-950">Evento no encontrado</h1>
+            <p className="mt-3 text-slate-500">Este evento no existe o no esta disponible.</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (event === null || event === 'loading') {
+    return (
+      <main className="mx-auto grid max-w-6xl gap-6 p-6">
+        <Link className="community-back-link community-back-link-compact" href="/comunidad">
+          <ArrowLeft className="h-4 w-4" />
+          Volver a comunidad
+        </Link>
+        <div className="grid min-h-72 place-items-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-black text-slate-950">Cargando...</h1>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -34,7 +72,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
 
       <article className="community-event-detail">
         <div className="relative min-h-[430px] overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#1c1917,#292524)] text-white">
-          {imageOf(event.coverUrl) && <img src={imageOf(event.coverUrl)!} alt="" className="absolute inset-0 h-full w-full object-cover opacity-72" />}
+          {event.coverUrl && <img src={event.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-72" />}
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.94),rgba(2,6,23,0.55),rgba(2,6,23,0.12))]" />
           <div className="relative flex min-h-[430px] max-w-3xl flex-col justify-end p-6 sm:p-10">
             <span className="community-kicker w-fit">

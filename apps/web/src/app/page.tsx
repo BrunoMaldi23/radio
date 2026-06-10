@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, CalendarDays, Headphones, Mic2, Music2, Play, Radio, Sparkles, Tv } from 'lucide-react';
@@ -13,19 +16,25 @@ const liveSignals = [
   { title: 'Labranza TV', description: 'Estudio, entrevistas y video en vivo', icon: Tv }
 ];
 
-async function getHomeData() {
-  const [articles, newArticles, moments, ranking] = await Promise.all([
-    api.articles('Noticias').then((items) => items.map(mapArticle)).catch(() => []),
-    api.articles('Exitos 90,2000').then((items) => items.map(mapArticle)).catch(() => []),
-    api.articles('Rankings semanal').then((items) => items.map(mapArticle)).catch(() => []),
-    api.ranking().catch(() => [])
-  ]);
+export default function Home() {
+  const [articles, setArticles] = useState<ReturnType<typeof mapArticle>[]>([]);
+  const [newArticles, setNewArticles] = useState<ReturnType<typeof mapArticle>[]>([]);
+  const [moments, setMoments] = useState<ReturnType<typeof mapArticle>[]>([]);
+  const [ranking, setRanking] = useState<{ id: number; title: string; artist: string; votes: number; artworkUrl: string | null; isActive: boolean }[]>([]);
 
-  return { articles, newArticles, moments, ranking };
-}
-
-export default async function Home() {
-  const { articles, newArticles, moments, ranking } = await getHomeData();
+  useEffect(() => {
+    Promise.all([
+      api.articles('Noticias').then((items) => items.map(mapArticle)).catch(() => [] as ReturnType<typeof mapArticle>[]),
+      api.articles('Exitos 90,2000').then((items) => items.map(mapArticle)).catch(() => [] as ReturnType<typeof mapArticle>[]),
+      api.articles('Rankings semanal').then((items) => items.map(mapArticle)).catch(() => [] as ReturnType<typeof mapArticle>[]),
+      api.ranking().catch(() => []),
+    ]).then(([articles, newArticles, moments, ranking]) => {
+      setArticles(articles);
+      setNewArticles(newArticles);
+      setMoments(moments);
+      setRanking(ranking);
+    });
+  }, []);
 
   return (
     <div className="mx-auto grid max-w-7xl gap-10">

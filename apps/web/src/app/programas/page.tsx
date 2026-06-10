@@ -1,20 +1,18 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { Mic2 } from 'lucide-react';
 import { ProgramCard } from '@/components/program-card';
 import { PublicPageHero } from '@/components/public-page-hero';
 import { api } from '@/lib/api';
 import { mapProgram } from '@/lib/content-mappers';
 
-async function getPrograms() {
-  try {
-    const apiPrograms = await api.programsPublic();
-    return apiPrograms.map(mapProgram);
-  } catch {
-    return [];
-  }
-}
+export default function ProgramsPage() {
+  const [publicPrograms, setPublicPrograms] = useState<ReturnType<typeof mapProgram>[]>([]);
 
-export default async function ProgramsPage() {
-  const publicPrograms = await getPrograms();
+  useEffect(() => {
+    api.programsPublic().then((items) => setPublicPrograms(items.map(mapProgram))).catch(() => setPublicPrograms([]));
+  }, []);
 
   return (
     <div className="mx-auto grid max-w-7xl gap-8">

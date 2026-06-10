@@ -1,18 +1,17 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { RadioTower } from 'lucide-react';
 import { PublicPageHero } from '@/components/public-page-hero';
 import { RankingBoard } from '@/components/ranking-board';
 import { api, type RankingTrack } from '@/lib/api';
 
-async function getInitialRanking(): Promise<RankingTrack[]> {
-  try {
-    return await api.ranking();
-  } catch {
-    return [];
-  }
-}
+export default function RankingPage() {
+  const [tracks, setTracks] = useState<RankingTrack[]>([]);
 
-export default async function RankingPage() {
-  const tracks = await getInitialRanking();
+  useEffect(() => {
+    api.ranking().then(setTracks).catch(() => setTracks([]));
+  }, []);
 
   return (
     <div className="mx-auto grid max-w-7xl gap-6">

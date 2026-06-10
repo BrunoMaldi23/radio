@@ -1,37 +1,76 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { ArrowLeft, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { api } from '@/lib/api';
+import { api, type Article } from '@/lib/api';
 import { EditorialCover } from '@/components/editorial-cover';
 
-type PageProps = {
-  params: Promise<{ slug: string }>;
-};
-
 function safeImage(value?: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  if (value.startsWith('/') || value.startsWith('http://') || value.startsWith('https://')) {
-    return value;
-  }
-
+  if (!value) return null;
+  if (value.startsWith('/') || value.startsWith('http://') || value.startsWith('https://')) return value;
   return null;
 }
 
-export default async function ArticleDetailPage({ params }: PageProps) {
-  const { slug } = await params;
-  const article = await api.articleBySlug(slug).catch(() => null);
+export default function ArticleDetailPage() {
+  const { slug } = useParams<{ slug: string }>();
+  const [article, setArticle] = useState<Article | null | 'loading'>(null);
+  const [notFound, setNotFound] = useState(false);
 
-  if (!article || article.status !== 'PUBLISHED') {
-    notFound();
+  useEffect(() => {
+    if (!slug) return;
+    api.articleBySlug(slug)
+      .then((result) => {
+        if (!result || result.status !== 'PUBLISHED') {
+          setNotFound(true);
+        } else {
+          setArticle(result);
+        }
+      })
+      .catch(() => setNotFound(true));
+  }, [slug]);
+
+  const date = article && typeof article === 'object'
+    ? new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(article.publishedAt!))
+    : 'Publicado ahora';
+
+  if (notFound) {
+    return (
+      <article className="mx-auto max-w-4xl p-6">
+        <Button asChild className="mb-6 border-zinc-300 bg-white text-zinc-950 hover:bg-zinc-100" variant="outline">
+          <Link href="/noticias">
+            <ArrowLeft className="h-4 w-4" />
+            Volver a noticias
+          </Link>
+        </Button>
+        <div className="grid min-h-72 place-items-center">
+          <div className="text-center">
+            <h1 className="text-4xl font-black text-zinc-950">Articulo no encontrado</h1>
+            <p className="mt-3 text-zinc-500">Esta publicacion no existe o no esta disponible.</p>
+          </div>
+        </div>
+      </article>
+    );
   }
 
-  const date = article.publishedAt
-    ? new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(article.publishedAt))
-    : 'Publicado ahora';
+  if (article === null || article === 'loading') {
+    return (
+      <article className="mx-auto max-w-4xl p-6">
+        <Button asChild className="mb-6 border-zinc-300 bg-white text-zinc-950 hover:bg-zinc-100" variant="outline">
+          <Link href="/noticias">
+            <ArrowLeft className="h-4 w-4" />
+            Volver a noticias
+          </Link>
+        </Button>
+        <div className="grid min-h-72 place-items-center">
+          <p className="text-2xl font-black text-zinc-950">Cargando...</p>
+        </div>
+      </article>
+    );
+  }
+
   const coverUrl = safeImage(article.coverUrl);
 
   return (

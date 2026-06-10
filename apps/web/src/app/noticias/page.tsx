@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { ArticleCard } from '@/components/article-card';
 import { PublicPageHero } from '@/components/public-page-hero';
 import { SectionHeading } from '@/components/section-heading';
@@ -5,17 +8,12 @@ import { api } from '@/lib/api';
 import { mapArticle } from '@/lib/content-mappers';
 import { Newspaper } from 'lucide-react';
 
-async function getArticles() {
-  try {
-    const articles = await api.articles('Noticias');
-    return articles.map(mapArticle);
-  } catch {
-    return [];
-  }
-}
+export default function NewsPage() {
+  const [articles, setArticles] = useState<ReturnType<typeof mapArticle>[]>([]);
 
-export default async function NewsPage() {
-  const articles = await getArticles();
+  useEffect(() => {
+    api.articles('Noticias').then((items) => setArticles(items.map(mapArticle))).catch(() => setArticles([]));
+  }, []);
 
   return (
     <div className="mx-auto grid max-w-7xl gap-8">

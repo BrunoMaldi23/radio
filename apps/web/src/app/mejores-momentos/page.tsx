@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { ArticleCard } from '@/components/article-card';
 import { PublicPageHero } from '@/components/public-page-hero';
 import { SectionHeading } from '@/components/section-heading';
@@ -5,8 +8,12 @@ import { api } from '@/lib/api';
 import { mapArticle } from '@/lib/content-mappers';
 import { Clapperboard } from 'lucide-react';
 
-export default async function BestMomentsPage() {
-  const articles = await api.articles('Rankings semanal').then((items) => items.map(mapArticle)).catch(() => []);
+export default function BestMomentsPage() {
+  const [articles, setArticles] = useState<ReturnType<typeof mapArticle>[]>([]);
+
+  useEffect(() => {
+    api.articles('Rankings semanal').then((items) => setArticles(items.map(mapArticle))).catch(() => setArticles([]));
+  }, []);
 
   return (
     <div className="mx-auto grid max-w-7xl gap-8">
